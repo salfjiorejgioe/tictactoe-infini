@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Play vs Friend</title>
+  <link rel="stylesheet" href="lobby.css" />
+</head>
+<body>
+  <div class="background-glow glow-1"></div>
+  <div class="background-glow glow-2"></div>
+
+  <header class="topbar">
+    <div class="logo-wrap">
+      <a href="index.html" class="back-link">← Back</a>
+      <h1 class="logo">PLAY VS FRIEND</h1>
+      <p class="subtitle">Create a code or join one your friend sends you.</p>
+    </div>
+
+    <div class="player-bar">
+      <div class="player-pill">
+        <span class="label">Username</span>
+        <span id="usernameDisplay">Guest</span>
+      </div>
+
+      <div class="player-pill">
+        <span class="label">Rating</span>
+        <span id="ratingDisplay">1000</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="lobby-main">
+    <section class="dual-lobby-grid">
+      <article class="lobby-card">
+        <p class="tiny-glow">PRIVATE MATCH</p>
+        <h2>Create Game</h2>
+        <p class="lobby-description">
+          Generate a referral code, copy it, and send it to your friend.
+        </p>
+
+        <div class="code-box">
+          <span class="selection-label">Referral Code</span>
+          <div class="big-code" id="generatedCode">------</div>
+        </div>
+
+        <div class="stack-buttons">
+          <button class="primary-btn" id="createGameBtn" type="button">Create Game</button>
+          <button class="secondary-btn" id="copyCodeBtn" type="button">Copy Code</button>
+        </div>
+      </article>
+
+      <article class="lobby-card">
+        <p class="tiny-glow">JOIN A FRIEND</p>
+        <h2>Join Game</h2>
+        <p class="lobby-description">
+          Enter a referral code and connect to the private match.
+        </p>
+
+        <button class="primary-btn" id="openJoinPopupBtn" type="button">Enter Code</button>
+      </article>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="waitingModal">
+    <div class="modal-card">
+      <button class="close-btn" id="closeWaitingBtn" type="button">&times;</button>
+      <p class="tiny-glow">WAITING ROOM</p>
+      <h3>Waiting for your friend to join</h3>
+      <p class="modal-description">
+        Share your referral code. Once your friend joins, the join match button unlocks.
+      </p>
+
+      <div class="queue-stats single-stat">
+        <div class="stat-box">
+          <span class="stat-label">Referral Code</span>
+          <span class="stat-value" id="waitingCode">------</span>
+        </div>
+      </div>
+
+      <div class="queue-status" id="waitingStatus">
+        Waiting for your friend...
+      </div>
+
+      <div class="queue-actions">
+        <button class="action-btn enabled-btn" id="simulateFriendBtn" type="button">
+          Simulate Friend Join
+        </button>
+        <button class="action-btn disabled-btn" id="joinCreatedMatchBtn" type="button" disabled>
+          Join Match
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="joinModal">
+    <div class="modal-card">
+      <button class="close-btn" id="closeJoinModalBtn" type="button">&times;</button>
+      <p class="tiny-glow">ENTER CODE</p>
+      <h3>Join Private Match</h3>
+      <p class="modal-description">
+        Paste the referral code your friend sent you.
+      </p>
+
+      <input class="code-input" id="joinCodeInput" type="text" maxlength="6" placeholder="Enter code" />
+
+      <div class="queue-actions single-action">
+        <button class="action-btn enabled-btn" id="confirmJoinBtn" type="button">
+          Join Game
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const USERNAME_KEY = "itt_username";
+    const RATING_KEY = "itt_rating";
+
+    const usernameDisplay = document.getElementById("usernameDisplay");
+    const ratingDisplay = document.getElementById("ratingDisplay");
+
+    const generatedCode = document.getElementById("generatedCode");
+    const createGameBtn = document.getElementById("createGameBtn");
+    const copyCodeBtn = document.getElementById("copyCodeBtn");
+
+    const waitingModal = document.getElementById("waitingModal");
+    const closeWaitingBtn = document.getElementById("closeWaitingBtn");
+    const waitingCode = document.getElementById("waitingCode");
+    const waitingStatus = document.getElementById("waitingStatus");
+    const simulateFriendBtn = document.getElementById("simulateFriendBtn");
+    const joinCreatedMatchBtn = document.getElementById("joinCreatedMatchBtn");
+
+    const openJoinPopupBtn = document.getElementById("openJoinPopupBtn");
+    const joinModal = document.getElementById("joinModal");
+    const closeJoinModalBtn = document.getElementById("closeJoinModalBtn");
+    const joinCodeInput = document.getElementById("joinCodeInput");
+    const confirmJoinBtn = document.getElementById("confirmJoinBtn");
+
+    let currentCode = "";
+
+    function loadProfile() {
+      const savedUsername = localStorage.getItem(USERNAME_KEY) || "Guest";
+      const savedRating = localStorage.getItem(RATING_KEY) || "1000";
+
+      usernameDisplay.textContent = savedUsername;
+      ratingDisplay.textContent = savedRating;
+    }
+
+    function generateCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let code = "";
+
+      for (let i = 0; i < 6; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+
+      return code;
+    }
+
+    createGameBtn.addEventListener("click", () => {
+      currentCode = generateCode();
+      generatedCode.textContent = currentCode;
+      waitingCode.textContent = currentCode;
+      waitingStatus.textContent = "Waiting for your friend...";
+      joinCreatedMatchBtn.disabled = true;
+      joinCreatedMatchBtn.classList.add("disabled-btn");
+      joinCreatedMatchBtn.classList.remove("enabled-btn");
+      waitingModal.classList.add("show");
+    });
+
+    copyCodeBtn.addEventListener("click", async () => {
+      if (!currentCode) {
+        alert("Create a game first.");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(currentCode);
+        alert("Code copied.");
+      } catch {
+        alert("Could not copy code.");
+      }
+    });
+
+    simulateFriendBtn.addEventListener("click", () => {
+      if (!currentCode) return;
+
+      waitingStatus.textContent = "Your friend joined. You can now press Join Match.";
+      joinCreatedMatchBtn.disabled = false;
+      joinCreatedMatchBtn.classList.remove("disabled-btn");
+      joinCreatedMatchBtn.classList.add("enabled-btn");
+    });
+
+    joinCreatedMatchBtn.addEventListener("click", () => {
+      if (!currentCode || joinCreatedMatchBtn.disabled) return;
+
+      const player1 = encodeURIComponent(localStorage.getItem(USERNAME_KEY) || "Guest");
+      const player2 = encodeURIComponent("Friend");
+      window.location.href = `game.html?mode=friend&gameId=${currentCode}&player1=${player1}&player2=${player2}`;
+    });
+
+    openJoinPopupBtn.addEventListener("click", () => {
+      joinModal.classList.add("show");
+    });
+
+    confirmJoinBtn.addEventListener("click", () => {
+      const code = joinCodeInput.value.trim().toUpperCase();
+
+      if (!/^[A-Z0-9]{6}$/.test(code)) {
+        alert("Enter a valid 6 character code.");
+        return;
+      }
+
+      const player1 = encodeURIComponent("Friend");
+      const player2 = encodeURIComponent(localStorage.getItem(USERNAME_KEY) || "Guest");
+      window.location.href = `game.html?mode=friend&gameId=${code}&player1=${player1}&player2=${player2}`;
+    });
+
+    closeWaitingBtn.addEventListener("click", () => {
+      waitingModal.classList.remove("show");
+    });
+
+    closeJoinModalBtn.addEventListener("click", () => {
+      joinModal.classList.remove("show");
+    });
+
+    waitingModal.addEventListener("click", (e) => {
+      if (e.target === waitingModal) waitingModal.classList.remove("show");
+    });
+
+    joinModal.addEventListener("click", (e) => {
+      if (e.target === joinModal) joinModal.classList.remove("show");
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

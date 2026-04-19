@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinite Tic Tac Toe - Match</title>
+  <link rel="stylesheet" href="game.css" />
+</head>
+<body>
+  <div class="background-glow glow-blue"></div>
+  <div class="background-glow glow-red"></div>
+
+  <header class="game-topbar">
+    <div class="left-panel">
+      <a href="index.html" class="back-link">← Back to Menu</a>
+      <h1 class="game-title">INFINITE TIC TAC TOE</h1>
+      <p class="game-subtitle">3 marks max. Every 4th move erases your oldest one.</p>
+    </div>
+
+    <div class="right-panel">
+      <div class="info-pill">
+        <span class="pill-label">Mode</span>
+        <span class="pill-value" id="modeDisplay">Bot</span>
+      </div>
+
+      <div class="info-pill">
+        <span class="pill-label">Game ID</span>
+        <span class="pill-value game-id" id="gameIdDisplay">----</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="game-layout">
+    <section class="side-card player-card x-card">
+      <p class="tiny-label">PLAYER X</p>
+      <h2 id="playerXName">You</h2>
+      <p class="player-role x-text">Neon Blue X</p>
+      <div class="mark-preview x-preview">
+        <div class="x-mini"></div>
+      </div>
+    </section>
+
+    <section class="center-stage">
+      <div class="status-card">
+        <div class="turn-banner" id="turnBanner">Your turn</div>
+
+        <div class="status-grid">
+          <div class="status-box">
+            <span class="status-label">Current Turn</span>
+            <span class="status-value" id="currentTurnDisplay">X</span>
+          </div>
+
+          <div class="status-box">
+            <span class="status-label">Match State</span>
+            <span class="status-value" id="matchStateDisplay">In Progress</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <div class="board" id="board">
+          <button class="cell" data-index="0" type="button"></button>
+          <button class="cell" data-index="1" type="button"></button>
+          <button class="cell" data-index="2" type="button"></button>
+          <button class="cell" data-index="3" type="button"></button>
+          <button class="cell" data-index="4" type="button"></button>
+          <button class="cell" data-index="5" type="button"></button>
+          <button class="cell" data-index="6" type="button"></button>
+          <button class="cell" data-index="7" type="button"></button>
+          <button class="cell" data-index="8" type="button"></button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="control-btn" id="restartBtn" type="button">Restart Match</button>
+      </div>
+    </section>
+
+    <section class="side-card player-card o-card">
+      <p class="tiny-label">PLAYER O</p>
+      <h2 id="playerOName">Opponent</h2>
+      <p class="player-role o-text">Blood Red O</p>
+      <div class="mark-preview o-preview">
+        <div class="o-mini"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="result-modal" id="resultModal">
+    <div class="result-card">
+      <h3 id="resultTitle">Match Over</h3>
+      <p id="resultText">Somebody won.</p>
+      <button class="control-btn" id="closeResultBtn" type="button">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const STATS_KEY = "itt_stats";
+
+    const params = new URLSearchParams(window.location.search);
+
+    const mode = params.get("mode") || "bot";
+    const difficulty = params.get("difficulty") || "medium";
+    const gameId = params.get("gameId") || ("game_" + Math.random().toString(36).slice(2, 10));
+    const player1 = params.get("player1") || localStorage.getItem("itt_username") || "You";
+    const player2 =
+      params.get("player2") ||
+      (mode === "bot" ? `Bot (${difficulty})` : mode === "queue" ? "Queued Opponent" : "Friend");
+
+    const modeDisplay = document.getElementById("modeDisplay");
+    const gameIdDisplay = document.getElementById("gameIdDisplay");
+    const playerXName = document.getElementById("playerXName");
+    const playerOName = document.getElementById("playerOName");
+    const turnBanner = document.getElementById("turnBanner");
+    const currentTurnDisplay = document.getElementById("currentTurnDisplay");
+    const matchStateDisplay = document.getElementById("matchStateDisplay");
+    const restartBtn = document.getElementById("restartBtn");
+    const closeResultBtn = document.getElementById("closeResultBtn");
+    const resultModal = document.getElementById("resultModal");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultText = document.getElementById("resultText");
+    const boardElement = document.getElementById("board");
+    const cells = document.querySelectorAll(".cell");
+
+    const WIN_LINES = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
+    ];
+
+    let board = Array(9).fill("");
+    let currentTurn = "X";
+    let gameOver = false;
+    let xMoves = [];
+    let oMoves = [];
+    let winningLine = null;
+    let resultRecorded = false;
+
+    const isBotGame = mode === "bot";
+    const isFriendGame = mode === "friend";
+    const isQueueGame = mode === "queue";
+
+    function getDefaultStats() {
+      return {
+        overall: { wins: 0, losses: 0, draws: 0 },
+        vsPlayers: { wins: 0, losses: 0, draws: 0 },
+        vsBot: {
+          easy: { wins: 0, losses: 0, draws: 0 },
+          medium: { wins: 0, losses: 0, draws: 0 },
+          hard: { wins: 0, losses: 0, draws: 0 },
+          nightmare: { wins: 0, losses: 0, draws: 0 }
+        }
+      };
+    }
+
+    function getStats() {
+      const saved = localStorage.getItem(STATS_KEY);
+      if (!saved) return getDefaultStats();
+
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return getDefaultStats();
+      }
+    }
+
+    function saveStats(stats) {
+      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    }
+
+    function recordMatchResult(result) {
+      const stats = getStats();
+
+      if (result === "win") stats.overall.wins++;
+      else if (result === "loss") stats.overall.losses++;
+      else stats.overall.draws++;
+
+      if (mode === "bot") {
+        const botBucket = stats.vsBot[difficulty] || stats.vsBot.medium;
+
+        if (result === "win") botBucket.wins++;
+        else if (result === "loss") botBucket.losses++;
+        else botBucket.draws++;
+      } else {
+        if (result === "win") stats.vsPlayers.wins++;
+        else if (result === "loss") stats.vsPlayers.losses++;
+        else stats.vsPlayers.draws++;
+      }
+
+      saveStats(stats);
+    }
+
+    function setupHeader() {
+      modeDisplay.textContent =
+        mode === "bot"
+          ? `Bot - ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`
+          : mode === "friend"
+          ? "Friend Match"
+          : "Random Queue";
+
+      gameIdDisplay.textContent = gameId;
+      playerXName.textContent = decodeURIComponent(player1);
+      playerOName.textContent = decodeURIComponent(player2);
+    }
+
+    function createXMarkup() {
+      return `
+        <span class="x-mark">
+          <span class="x-line x-line-1"></span>
+          <span class="x-line x-line-2"></span>
+        </span>
+      `;
+    }
+
+    function createOMarkup() {
+      return `<span class="o-mark"></span>`;
+    }
+
+    function checkWinner(symbol) {
+      for (const line of WIN_LINES) {
+        const [a, b, c] = line;
+        if (board[a] === symbol && board[b] === symbol && board[c] === symbol) {
+          winningLine = line;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function removeOldestIfNeeded(symbol) {
+      const movesArray = symbol === "X" ? xMoves : oMoves;
+
+      if (movesArray.length >= 3) {
+        const oldestIndex = movesArray.shift();
+        board[oldestIndex] = "";
+      }
+    }
+
+    function addMove(symbol, index) {
+      removeOldestIfNeeded(symbol);
+      board[index] = symbol;
+
+      if (symbol === "X") {
+        xMoves.push(index);
+      } else {
+        oMoves.push(index);
+      }
+    }
+
+    function renderBoard() {
+      cells.forEach((cell, index) => {
+        cell.innerHTML = "";
+        cell.classList.remove("x-cell", "o-cell", "fading-next", "winning-cell", "locked");
+
+        if (board[index] === "X") {
+          cell.innerHTML = createXMarkup();
+          cell.classList.add("x-cell");
+        } else if (board[index] === "O") {
+          cell.innerHTML = createOMarkup();
+          cell.classList.add("o-cell");
+        }
+
+        if (winningLine && winningLine.includes(index)) {
+          cell.classList.add("winning-cell");
+        }
+      });
+
+      if (!gameOver) {
+        if (xMoves.length === 3) {
+          const nextToFadeX = xMoves[0];
+          if (board[nextToFadeX] === "X") {
+            cells[nextToFadeX].classList.add("fading-next");
+          }
+        }
+
+        if (oMoves.length === 3) {
+          const nextToFadeO = oMoves[0];
+          if (board[nextToFadeO] === "O") {
+            cells[nextToFadeO].classList.add("fading-next");
+          }
+        }
+      }
+
+      const playerCanInteract = currentTurn === "X" && !gameOver;
+      if (!playerCanInteract) {
+        boardElement.classList.add("board-locked");
+        cells.forEach(cell => cell.classList.add("locked"));
+      } else {
+        boardElement.classList.remove("board-locked");
+        cells.forEach(cell => cell.classList.remove("locked"));
+      }
+    }
+
+    function updateTurnUI() {
+      currentTurnDisplay.textContent = currentTurn;
+
+      if (gameOver) return;
+
+      if (currentTurn === "X") {
+        turnBanner.textContent = `${decodeURIComponent(player1)}'s turn`;
+        turnBanner.className = "turn-banner turn-x";
+      } else {
+        turnBanner.textContent = `${decodeURIComponent(player2)}'s turn`;
+        turnBanner.className = "turn-banner turn-o";
+      }
+    }
+
+    function openResult(title, text) {
+      resultTitle.textContent = title;
+      resultText.textContent = text;
+      resultModal.classList.add("show");
+    }
+
+    function endGame(winner) {
+      gameOver = true;
+      matchStateDisplay.textContent = winner ? `${winner} Wins` : "Draw";
+      renderBoard();
+      updateTurnUI();
+
+      if (!resultRecorded) {
+        if (winner === "X") {
+          recordMatchResult("win");
+        } else if (winner === "O") {
+          recordMatchResult("loss");
+        } else {
+          recordMatchResult("draw");
+        }
+        resultRecorded = true;
+      }
+
+      if (winner === "X") {
+        openResult("X Wins", `${decodeURIComponent(player1)} wins the match.`);
+      } else if (winner === "O") {
+        openResult("O Wins", `${decodeURIComponent(player2)} wins the match.`);
+      } else {
+        openResult("Draw", "The board is full and nobody won.");
+      }
+    }
+
+    function afterMove(symbol) {
+      renderBoard();
+
+      if (checkWinner(symbol)) {
+        endGame(symbol);
+        return;
+      }
+
+      const boardFull = board.every(cell => cell !== "");
+      if (boardFull) {
+        endGame(null);
+        return;
+      }
+
+      currentTurn = currentTurn === "X" ? "O" : "X";
+      updateTurnUI();
+      renderBoard();
+
+      if (isBotGame && currentTurn === "O" && !gameOver) {
+        setTimeout(botMove, 650);
+      }
+    }
+
+    function handlePlayerMove(index) {
+      if (gameOver) return;
+      if (currentTurn !== "X") return;
+      if (board[index] !== "") return;
+
+      addMove("X", index);
+      afterMove("X");
+    }
+
+    function getAvailableMoves() {
+      return board
+        .map((value, index) => (value === "" ? index : null))
+        .filter(value => value !== null);
+    }
+
+    function simulateMoveCheck(symbol, index, boardState, xState, oState) {
+      const testBoard = [...boardState];
+      const testX = [...xState];
+      const testO = [...oState];
+      const targetMoves = symbol === "X" ? testX : testO;
+
+      if (targetMoves.length >= 3) {
+        const oldest = targetMoves.shift();
+        testBoard[oldest] = "";
+      }
+
+      testBoard[index] = symbol;
+      targetMoves.push(index);
+
+      for (const [a, b, c] of WIN_LINES) {
+        if (testBoard[a] === symbol && testBoard[b] === symbol && testBoard[c] === symbol) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    function randomChoice(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function getStrategicMove() {
+      const available = getAvailableMoves();
+      if (!available.length) return null;
+
+      const center = 4;
+      const corners = [0, 2, 6, 8].filter(i => board[i] === "");
+      const edges = [1, 3, 5, 7].filter(i => board[i] === "");
+
+      for (const move of available) {
+        if (simulateMoveCheck("O", move, board, xMoves, oMoves)) {
+          return move;
+        }
+      }
+
+      for (const move of available) {
+        if (simulateMoveCheck("X", move, board, xMoves, oMoves)) {
+          return move;
+        }
+      }
+
+      if (available.includes(center)) return center;
+      if (corners.length) return randomChoice(corners);
+      if (edges.length) return randomChoice(edges);
+
+      return randomChoice(available);
+    }
+
+    function getMediumMove() {
+      const available = getAvailableMoves();
+      if (!available.length) return null;
+
+      if (Math.random() < 0.65) {
+        return getStrategicMove();
+      }
+
+      return randomChoice(available);
+    }
+
+    function getEasyMove() {
+      const available = getAvailableMoves();
+      if (!available.length) return null;
+
+      if (Math.random() < 0.25) {
+        return getStrategicMove();
+      }
+
+      return randomChoice(available);
+    }
+
+    function getNightmareMove() {
+      const available = getAvailableMoves();
+      if (!available.length) return null;
+
+      for (const move of available) {
+        if (simulateMoveCheck("O", move, board, xMoves, oMoves)) {
+          return move;
+        }
+      }
+
+      for (const move of available) {
+        if (simulateMoveCheck("X", move, board, xMoves, oMoves)) {
+          return move;
+        }
+      }
+
+      if (board[4] === "") return 4;
+
+      const corners = [0, 2, 6, 8].filter(i => board[i] === "");
+      if (corners.length) return randomChoice(corners);
+
+      const edges = [1, 3, 5, 7].filter(i => board[i] === "");
+      if (edges.length) return randomChoice(edges);
+
+      return randomChoice(available);
+    }
+
+    function botMove() {
+      if (gameOver || currentTurn !== "O") return;
+
+      let move = null;
+
+      switch (difficulty) {
+        case "easy":
+          move = getEasyMove();
+          break;
+        case "medium":
+          move = getMediumMove();
+          break;
+        case "hard":
+          move = getStrategicMove();
+          break;
+        case "nightmare":
+          move = getNightmareMove();
+          break;
+        default:
+          move = getMediumMove();
+      }
+
+      if (move === null || board[move] !== "") return;
+
+      addMove("O", move);
+      afterMove("O");
+    }
+
+    function handleOtherPlayerMockMove() {
+      if (gameOver || currentTurn !== "O" || isBotGame) return;
+
+      const available = getAvailableMoves();
+      if (!available.length) return;
+
+      const move = randomChoice(available);
+      addMove("O", move);
+      afterMove("O");
+    }
+
+    cells.forEach(cell => {
+      cell.addEventListener("click", () => {
+        const index = Number(cell.dataset.index);
+        handlePlayerMove(index);
+
+        if ((isFriendGame || isQueueGame) && currentTurn === "O" && !gameOver) {
+          setTimeout(handleOtherPlayerMockMove, 700);
+        }
+      });
+    });
+
+    restartBtn.addEventListener("click", () => {
+      board = Array(9).fill("");
+      currentTurn = "X";
+      gameOver = false;
+      xMoves = [];
+      oMoves = [];
+      winningLine = null;
+      resultRecorded = false;
+      matchStateDisplay.textContent = "In Progress";
+      resultModal.classList.remove("show");
+      updateTurnUI();
+      renderBoard();
+    });
+
+    closeResultBtn.addEventListener("click", () => {
+      resultModal.classList.remove("show");
+    });
+
+    setupHeader();
+    updateTurnUI();
+    renderBoard();
+  </script>
+</body>
+</html>

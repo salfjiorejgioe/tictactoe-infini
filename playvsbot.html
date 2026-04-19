@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Play vs Bot</title>
+  <link rel="stylesheet" href="lobby.css" />
+</head>
+<body>
+  <div class="background-glow glow-1"></div>
+  <div class="background-glow glow-2"></div>
+
+  <header class="topbar">
+    <div class="logo-wrap">
+      <a href="index.html" class="back-link">← Back</a>
+      <h1 class="logo">PLAY VS BOT</h1>
+      <p class="subtitle">Choose a difficulty and enter the arena.</p>
+    </div>
+
+    <div class="player-bar">
+      <div class="player-pill">
+        <span class="label">Username</span>
+        <span id="usernameDisplay">Guest</span>
+      </div>
+
+      <div class="player-pill">
+        <span class="label">Rating</span>
+        <span id="ratingDisplay">1000</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="lobby-main">
+    <section class="lobby-card">
+      <p class="tiny-glow">BOT MATCH</p>
+      <h2>Select Difficulty</h2>
+      <p class="lobby-description">
+        You always go first. Pick your challenge level, then press join match.
+      </p>
+
+      <div class="difficulty-grid">
+        <button class="difficulty-btn" data-difficulty="easy" type="button">
+          <span class="difficulty-title">Easy</span>
+          <span class="difficulty-subtitle">Forgiving and simple</span>
+        </button>
+
+        <button class="difficulty-btn" data-difficulty="medium" type="button">
+          <span class="difficulty-title">Medium</span>
+          <span class="difficulty-subtitle">Balanced and reactive</span>
+        </button>
+
+        <button class="difficulty-btn" data-difficulty="hard" type="button">
+          <span class="difficulty-title">Hard</span>
+          <span class="difficulty-subtitle">Punishes mistakes</span>
+        </button>
+
+        <button class="difficulty-btn nightmare-btn" data-difficulty="nightmare" type="button">
+          <span class="difficulty-title">Nightmare 💀</span>
+          <span class="difficulty-subtitle">The bot wants blood</span>
+        </button>
+      </div>
+
+      <div class="selection-box">
+        <span class="selection-label">Selected Difficulty</span>
+        <span class="selection-value" id="selectedDifficulty">None</span>
+      </div>
+
+      <button class="primary-btn" id="joinBotMatchBtn" type="button">
+        Join Match
+      </button>
+    </section>
+  </main>
+
+  <script>
+    const USERNAME_KEY = "itt_username";
+    const RATING_KEY = "itt_rating";
+
+    const usernameDisplay = document.getElementById("usernameDisplay");
+    const ratingDisplay = document.getElementById("ratingDisplay");
+    const selectedDifficulty = document.getElementById("selectedDifficulty");
+    const joinBotMatchBtn = document.getElementById("joinBotMatchBtn");
+    const difficultyButtons = document.querySelectorAll(".difficulty-btn");
+
+    let currentDifficulty = "";
+
+    function loadProfile() {
+      const savedUsername = localStorage.getItem(USERNAME_KEY) || "Guest";
+      const savedRating = localStorage.getItem(RATING_KEY) || "1000";
+
+      usernameDisplay.textContent = savedUsername;
+      ratingDisplay.textContent = savedRating;
+    }
+
+    difficultyButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        difficultyButtons.forEach((btn) => btn.classList.remove("selected"));
+        button.classList.add("selected");
+
+        currentDifficulty = button.dataset.difficulty;
+        selectedDifficulty.textContent =
+          currentDifficulty === "nightmare"
+            ? "Nightmare 💀"
+            : currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
+      });
+    });
+
+    joinBotMatchBtn.addEventListener("click", () => {
+      if (!currentDifficulty) {
+        alert("Select a difficulty first.");
+        return;
+      }
+
+      const gameId = "bot_" + currentDifficulty + "_" + Math.random().toString(36).slice(2, 10);
+      window.location.href = `game.html?mode=bot&difficulty=${currentDifficulty}&gameId=${gameId}`;
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

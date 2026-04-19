@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinite Tic Tac Toe</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <div class="background-glow glow-1"></div>
+  <div class="background-glow glow-2"></div>
+  <div class="background-glow glow-3"></div>
+
+  <header class="topbar">
+    <div class="brand-side">
+      <div class="title-row">
+        <div class="main-logo-box">
+          <div class="logo-ring"></div>
+          <div class="logo-core">∞</div>
+        </div>
+
+        <div class="logo-wrap">
+          <p class="top-kicker">NEON STRATEGY ARENA</p>
+          <h1 class="logo">INFINITE TIC TAC TOE</h1>
+          <p class="subtitle">Neon mind games. Three marks only. Every move matters.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-card">
+      <button class="avatar-button" id="openAvatarPickerBtn" type="button">
+        <img id="profileAvatar" src="icons/guest.png" alt="Guest avatar" />
+        <span class="avatar-edit">✦</span>
+      </button>
+
+      <div class="profile-main">
+        <div class="profile-top">
+          <div class="profile-info-box">
+            <span class="label">Username</span>
+            <span id="usernameDisplay">Guest</span>
+          </div>
+
+          <div class="profile-info-box rating-box">
+            <span class="label">Rating</span>
+            <span id="ratingDisplay">1000</span>
+          </div>
+        </div>
+
+        <div class="profile-actions">
+          <button class="profile-btn create-btn" id="createAccountBtn" type="button">Create Account</button>
+          <button class="profile-btn stats-btn" id="openStatsBtn" type="button">Statistics</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="hero-card">
+      <div class="hero-orb orb-left"></div>
+      <div class="hero-orb orb-right"></div>
+
+      <div class="hero-text">
+        <p class="tiny-glow">WELCOME TO THE ARENA</p>
+        <h2>Choose your path.</h2>
+        <p class="hero-description">
+          Battle a bot, invite a friend with a code, or enter the random queue and wait
+          for a worthy opponent.
+        </p>
+      </div>
+
+      <div class="menu-buttons">
+        <a class="menu-btn bot-btn" href="playvsbot.html">
+          <div class="btn-accent"></div>
+          <span class="btn-title">Play vs Bot</span>
+          <span class="btn-subtitle">Practice against AI</span>
+        </a>
+
+        <a class="menu-btn friend-btn" href="playvsfriend.html">
+          <div class="btn-accent"></div>
+          <span class="btn-title">Play vs Friend</span>
+          <span class="btn-subtitle">Create or join with code</span>
+        </a>
+
+        <button class="menu-btn queue-btn" id="openQueueBtn" type="button">
+          <div class="btn-accent"></div>
+          <span class="btn-title">Join Random Queue</span>
+          <span class="btn-subtitle">Find a player near your rating</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-left">
+      <span class="footer-logo">∞</span>
+      <span>Infinite Tic Tac Toe</span>
+    </div>
+
+    <div class="footer-center">
+      <span>Only your latest 3 marks stay alive.</span>
+    </div>
+
+    <div class="footer-right">
+      <span class="footer-pill">X = Neon Blue</span>
+      <span class="footer-pill">O = Blood Red</span>
+    </div>
+  </footer>
+
+  <div class="modal-overlay" id="queueModal">
+    <div class="modal-card">
+      <button class="close-btn" id="closeQueueBtn" type="button">&times;</button>
+
+      <p class="tiny-glow">MATCHMAKING</p>
+      <h3>Random Queue</h3>
+      <p class="modal-description">
+        Queue up and wait for another player. Match buttons stay locked until somebody is found.
+      </p>
+
+      <div class="queue-stats">
+        <div class="stat-box">
+          <span class="stat-label">Queue Timer</span>
+          <span class="stat-value" id="queueTimer">00:00</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">Average Queue Time</span>
+          <span class="stat-value">00:18</span>
+        </div>
+      </div>
+
+      <div class="queue-status" id="queueStatus">Searching for a player...</div>
+
+      <div class="queue-actions">
+        <button class="action-btn disabled-btn" id="declineMatchBtn" type="button" disabled>Decline Match</button>
+        <button class="action-btn disabled-btn" id="joinMatchBtn" type="button" disabled>Join Match</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="avatarModal">
+    <div class="modal-card avatar-modal-card">
+      <button class="close-btn" id="closeAvatarModalBtn" type="button">&times;</button>
+
+      <p class="tiny-glow">PROFILE ICON</p>
+      <h3>Choose your icon</h3>
+      <p class="modal-description">Click an icon to use it as your profile picture.</p>
+
+      <div class="avatar-grid">
+        <button class="avatar-choice selected-avatar" type="button" data-avatar="icons/guest.png"><img src="icons/guest.png" alt="Guest icon" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon1.png"><img src="icons/icon1.png" alt="Icon 1" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon2.png"><img src="icons/icon2.png" alt="Icon 2" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon3.png"><img src="icons/icon3.png" alt="Icon 3" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon4.png"><img src="icons/icon4.png" alt="Icon 4" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon5.png"><img src="icons/icon5.png" alt="Icon 5" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon6.png"><img src="icons/icon6.png" alt="Icon 6" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon7.png"><img src="icons/icon7.png" alt="Icon 7" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon8.png"><img src="icons/icon8.png" alt="Icon 8" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon9.png"><img src="icons/icon9.png" alt="Icon 9" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon10.png"><img src="icons/icon10.png" alt="Icon 10" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon11.png"><img src="icons/icon11.png" alt="Icon 11" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon12.png"><img src="icons/icon12.png" alt="Icon 12" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon13.png"><img src="icons/icon13.png" alt="Icon 13" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon14.png"><img src="icons/icon14.png" alt="Icon 14" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon15.png"><img src="icons/icon15.png" alt="Icon 15" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon16.png"><img src="icons/icon16.png" alt="Icon 16" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon17.png"><img src="icons/icon17.png" alt="Icon 17" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon18.png"><img src="icons/icon18.png" alt="Icon 18" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon19.png"><img src="icons/icon19.png" alt="Icon 19" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon20.png"><img src="icons/icon20.png" alt="Icon 20" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon21.png"><img src="icons/icon21.png" alt="Icon 21" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon22.png"><img src="icons/icon22.png" alt="Icon 22" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon23.png"><img src="icons/icon23.png" alt="Icon 23" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon24.png"><img src="icons/icon24.png" alt="Icon 24" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon25.png"><img src="icons/icon25.png" alt="Icon 25" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon26.png"><img src="icons/icon26.png" alt="Icon 26" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon27.png"><img src="icons/icon27.png" alt="Icon 27" /></button>
+        <button class="avatar-choice" type="button" data-avatar="icons/icon28.png"><img src="icons/icon28.png" alt="Icon 28" /></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="statsModal">
+    <div class="modal-card stats-modal-card">
+      <button class="close-btn" id="closeStatsModalBtn" type="button">&times;</button>
+
+      <p class="tiny-glow">PLAYER STATISTICS</p>
+      <h3>Your Record</h3>
+      <p class="modal-description">Your local performance stats saved on this browser.</p>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-label">Total Games</span>
+          <span class="stat-value" id="totalGamesStat">0</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">Overall Winrate</span>
+          <span class="stat-value" id="overallWinrateStat">0%</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">Vs Players</span>
+          <span class="stat-value" id="vsPlayersWinrateStat">0%</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">Vs Bot Easy</span>
+          <span class="stat-value" id="vsBotEasyStat">0%</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">Vs Bot Medium</span>
+          <span class="stat-value" id="vsBotMediumStat">0%</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">Vs Bot Hard</span>
+          <span class="stat-value" id="vsBotHardStat">0%</span>
+        </div>
+
+        <div class="stat-box">
+          <span class="stat-label">Vs Bot Nightmare</span>
+          <span class="stat-value" id="vsBotNightmareStat">0%</span>
+        </div>
+      </div>
+
+      <div class="queue-actions single-action">
+        <button class="action-btn enabled-btn" id="resetStatsBtn" type="button">Reset Statistics</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const USERNAME_KEY = "itt_username";
+    const RATING_KEY = "itt_rating";
+    const AVATAR_KEY = "itt_avatar";
+    const STATS_KEY = "itt_stats";
+
+    const usernameDisplay = document.getElementById("usernameDisplay");
+    const ratingDisplay = document.getElementById("ratingDisplay");
+    const profileAvatar = document.getElementById("profileAvatar");
+
+    const queueModal = document.getElementById("queueModal");
+    const openQueueBtn = document.getElementById("openQueueBtn");
+    const closeQueueBtn = document.getElementById("closeQueueBtn");
+    const queueTimer = document.getElementById("queueTimer");
+    const queueStatus = document.getElementById("queueStatus");
+    const declineMatchBtn = document.getElementById("declineMatchBtn");
+    const joinMatchBtn = document.getElementById("joinMatchBtn");
+
+    const createAccountBtn = document.getElementById("createAccountBtn");
+
+    const avatarModal = document.getElementById("avatarModal");
+    const openAvatarPickerBtn = document.getElementById("openAvatarPickerBtn");
+    const closeAvatarModalBtn = document.getElementById("closeAvatarModalBtn");
+    const avatarChoices = document.querySelectorAll(".avatar-choice");
+
+    const openStatsBtn = document.getElementById("openStatsBtn");
+    const statsModal = document.getElementById("statsModal");
+    const closeStatsModalBtn = document.getElementById("closeStatsModalBtn");
+    const resetStatsBtn = document.getElementById("resetStatsBtn");
+
+    const totalGamesStat = document.getElementById("totalGamesStat");
+    const overallWinrateStat = document.getElementById("overallWinrateStat");
+    const vsPlayersWinrateStat = document.getElementById("vsPlayersWinrateStat");
+    const vsBotEasyStat = document.getElementById("vsBotEasyStat");
+    const vsBotMediumStat = document.getElementById("vsBotMediumStat");
+    const vsBotHardStat = document.getElementById("vsBotHardStat");
+    const vsBotNightmareStat = document.getElementById("vsBotNightmareStat");
+
+    let queueSeconds = 0;
+    let queueInterval = null;
+    let foundPlayerTimeout = null;
+
+    function getDefaultStats() {
+      return {
+        overall: { wins: 0, losses: 0, draws: 0 },
+        vsPlayers: { wins: 0, losses: 0, draws: 0 },
+        vsBot: {
+          easy: { wins: 0, losses: 0, draws: 0 },
+          medium: { wins: 0, losses: 0, draws: 0 },
+          hard: { wins: 0, losses: 0, draws: 0 },
+          nightmare: { wins: 0, losses: 0, draws: 0 }
+        }
+      };
+    }
+
+    function getStats() {
+      const saved = localStorage.getItem(STATS_KEY);
+      if (!saved) return getDefaultStats();
+
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return getDefaultStats();
+      }
+    }
+
+    function getTotalGames(bucket) {
+      return bucket.wins + bucket.losses + bucket.draws;
+    }
+
+    function getWinrate(bucket) {
+      const total = getTotalGames(bucket);
+      if (total === 0) return "0%";
+      return ((bucket.wins / total) * 100).toFixed(1) + "%";
+    }
+
+    function renderStats() {
+      const stats = getStats();
+
+      totalGamesStat.textContent = getTotalGames(stats.overall);
+      overallWinrateStat.textContent = getWinrate(stats.overall);
+      vsPlayersWinrateStat.textContent = getWinrate(stats.vsPlayers);
+      vsBotEasyStat.textContent = getWinrate(stats.vsBot.easy);
+      vsBotMediumStat.textContent = getWinrate(stats.vsBot.medium);
+      vsBotHardStat.textContent = getWinrate(stats.vsBot.hard);
+      vsBotNightmareStat.textContent = getWinrate(stats.vsBot.nightmare);
+    }
+
+    function loadProfile() {
+      const savedUsername = localStorage.getItem(USERNAME_KEY);
+      const savedRating = localStorage.getItem(RATING_KEY);
+      const savedAvatar = localStorage.getItem(AVATAR_KEY);
+
+      if (!savedUsername) {
+        localStorage.setItem(USERNAME_KEY, "Guest");
+        usernameDisplay.textContent = "Guest";
+      } else {
+        usernameDisplay.textContent = savedUsername;
+      }
+
+      if (!savedRating) {
+        localStorage.setItem(RATING_KEY, "1000");
+        ratingDisplay.textContent = "1000";
+      } else {
+        ratingDisplay.textContent = savedRating;
+      }
+
+      if (!savedAvatar) {
+        localStorage.setItem(AVATAR_KEY, "icons/guest.png");
+        profileAvatar.src = "icons/guest.png";
+      } else {
+        profileAvatar.src = savedAvatar;
+      }
+
+      updateSelectedAvatarBorder();
+    }
+
+    function updateSelectedAvatarBorder() {
+      const currentAvatar = localStorage.getItem(AVATAR_KEY) || "icons/guest.png";
+
+      avatarChoices.forEach(choice => {
+        if (choice.dataset.avatar === currentAvatar) {
+          choice.classList.add("selected-avatar");
+        } else {
+          choice.classList.remove("selected-avatar");
+        }
+      });
+    }
+
+    function formatTime(totalSeconds) {
+      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+      const seconds = String(totalSeconds % 60).padStart(2, "0");
+      return `${minutes}:${seconds}`;
+    }
+
+    function resetQueueState() {
+      queueSeconds = 0;
+      queueTimer.textContent = "00:00";
+      queueStatus.textContent = "Searching for a player...";
+
+      joinMatchBtn.disabled = true;
+      declineMatchBtn.disabled = true;
+
+      joinMatchBtn.classList.add("disabled-btn");
+      declineMatchBtn.classList.add("disabled-btn");
+
+      joinMatchBtn.classList.remove("enabled-btn");
+      declineMatchBtn.classList.remove("enabled-btn");
+    }
+
+    function startQueue() {
+      resetQueueState();
+
+      queueInterval = setInterval(() => {
+        queueSeconds++;
+        queueTimer.textContent = formatTime(queueSeconds);
+      }, 1000);
+
+      foundPlayerTimeout = setTimeout(() => {
+        queueStatus.textContent = "Player found. You can now accept or decline.";
+        joinMatchBtn.disabled = false;
+        declineMatchBtn.disabled = false;
+
+        joinMatchBtn.classList.remove("disabled-btn");
+        declineMatchBtn.classList.remove("disabled-btn");
+
+        joinMatchBtn.classList.add("enabled-btn");
+        declineMatchBtn.classList.add("enabled-btn");
+      }, 5000);
+    }
+
+    function stopQueue() {
+      clearInterval(queueInterval);
+      clearTimeout(foundPlayerTimeout);
+      queueInterval = null;
+      foundPlayerTimeout = null;
+    }
+
+    openQueueBtn.addEventListener("click", () => {
+      queueModal.classList.add("show");
+      startQueue();
+    });
+
+    closeQueueBtn.addEventListener("click", () => {
+      stopQueue();
+      queueModal.classList.remove("show");
+    });
+
+    declineMatchBtn.addEventListener("click", () => {
+      if (declineMatchBtn.disabled) return;
+      stopQueue();
+      queueStatus.textContent = "Match declined.";
+    });
+
+    joinMatchBtn.addEventListener("click", () => {
+      if (joinMatchBtn.disabled) return;
+      const gameId = "queue_" + Math.random().toString(36).slice(2, 10);
+      window.location.href = `game.html?mode=queue&gameId=${gameId}`;
+    });
+
+    queueModal.addEventListener("click", (e) => {
+      if (e.target === queueModal) {
+        stopQueue();
+        queueModal.classList.remove("show");
+      }
+    });
+
+    createAccountBtn.addEventListener("click", () => {
+      alert("Later this button can open your real signup page.");
+    });
+
+    openAvatarPickerBtn.addEventListener("click", () => {
+      avatarModal.classList.add("show");
+    });
+
+    closeAvatarModalBtn.addEventListener("click", () => {
+      avatarModal.classList.remove("show");
+    });
+
+    avatarModal.addEventListener("click", (e) => {
+      if (e.target === avatarModal) {
+        avatarModal.classList.remove("show");
+      }
+    });
+
+    avatarChoices.forEach(choice => {
+      choice.addEventListener("click", () => {
+        const selectedAvatar = choice.dataset.avatar;
+        localStorage.setItem(AVATAR_KEY, selectedAvatar);
+        profileAvatar.src = selectedAvatar;
+        updateSelectedAvatarBorder();
+      });
+    });
+
+    openStatsBtn.addEventListener("click", () => {
+      renderStats();
+      statsModal.classList.add("show");
+    });
+
+    closeStatsModalBtn.addEventListener("click", () => {
+      statsModal.classList.remove("show");
+    });
+
+    statsModal.addEventListener("click", (e) => {
+      if (e.target === statsModal) {
+        statsModal.classList.remove("show");
+      }
+    });
+
+    resetStatsBtn.addEventListener("click", () => {
+      localStorage.removeItem(STATS_KEY);
+      renderStats();
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>
