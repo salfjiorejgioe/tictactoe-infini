@@ -120,16 +120,13 @@
     </div>
   </footer>
 
-  <!-- QUEUE MODAL -->
   <div class="modal-overlay" id="queueModal">
     <div class="modal-card">
       <button class="close-btn" id="closeQueueBtn" type="button">&times;</button>
 
       <p class="tiny-glow">MATCHMAKING</p>
       <h3>Random Queue</h3>
-      <p class="modal-description">
-        Queue up and wait for another player.
-      </p>
+      <p class="modal-description">Queue up and wait for another player.</p>
 
       <div class="queue-stats">
         <div class="stat-box">
@@ -143,9 +140,7 @@
         </div>
       </div>
 
-      <div class="queue-status" id="queueStatus">
-        Searching for player...
-      </div>
+      <div class="queue-status" id="queueStatus">Searching for player...</div>
 
       <div class="queue-actions">
         <button class="action-btn disabled-btn" id="declineMatchBtn" type="button" disabled>
@@ -159,7 +154,6 @@
     </div>
   </div>
 
-  <!-- AVATAR MODAL -->
   <div class="modal-overlay" id="avatarModal">
     <div class="modal-card avatar-modal-card">
       <button class="close-btn" id="closeAvatarModalBtn" type="button">&times;</button>
@@ -172,7 +166,6 @@
     </div>
   </div>
 
-  <!-- STATS MODAL -->
   <div class="modal-overlay" id="statsModal">
     <div class="modal-card stats-modal-card">
       <button class="close-btn" id="closeStatsModalBtn" type="button">&times;</button>
@@ -227,7 +220,7 @@
   </div>
 
   <script>
-    const socket = io();
+    const socket = typeof io !== "undefined" ? io() : null;
 
     const USERNAME_KEY = "itt_username";
     const RATING_KEY = "itt_rating";
@@ -275,11 +268,9 @@
       let id = localStorage.getItem(SESSION_KEY);
 
       if (!id) {
-        if (crypto.randomUUID) {
-          id = crypto.randomUUID();
-        } else {
-          id = "session_" + Math.random().toString(36).slice(2, 14);
-        }
+        id = crypto.randomUUID
+          ? crypto.randomUUID()
+          : "session_" + Math.random().toString(36).slice(2, 14);
 
         localStorage.setItem(SESSION_KEY, id);
       }
@@ -413,18 +404,13 @@
       const avatarChoices = document.querySelectorAll(".avatar-choice");
 
       avatarChoices.forEach((choice) => {
-        if (choice.dataset.avatar === currentAvatar) {
-          choice.classList.add("selected-avatar");
-        } else {
-          choice.classList.remove("selected-avatar");
-        }
+        choice.classList.toggle("selected-avatar", choice.dataset.avatar === currentAvatar);
       });
     }
 
     function formatTime(totalSeconds) {
       const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
       const seconds = String(totalSeconds % 60).padStart(2, "0");
-
       return `${minutes}:${seconds}`;
     }
 
@@ -472,19 +458,24 @@
       queueStatus.textContent = "Searching for player...";
       foundMatch = null;
 
-      startQueueTimer();
+      if (!socket) {
+        queueStatus.textContent = "Online server not connected.";
+        return;
+      }
 
+      startQueueTimer();
       socket.emit("joinQueue", getProfilePayload());
     }
 
     function leaveQueue() {
       stopQueueTimer();
 
-      socket.emit("leaveQueue", getProfilePayload());
+      if (socket) {
+        socket.emit("leaveQueue", getProfilePayload());
+      }
 
       queueStatus.textContent = "You left the queue.";
       foundMatch = null;
-
       resetQueueButtons();
     }
 
@@ -581,29 +572,27 @@
       renderStats();
     });
 
-    socket.on("queueWaiting", () => {
-      queueStatus.textContent = "Waiting for opponent...";
-      declineMatchBtn.disabled = false;
-      declineMatchBtn.classList.remove("disabled-btn");
-      declineMatchBtn.classList.add("enabled-btn");
-    });
+    if (socket) {
+      socket.on("queueWaiting", () => {
+        queueStatus.textContent = "Waiting for opponent...";
+        declineMatchBtn.disabled = false;
+        declineMatchBtn.classList.remove("disabled-btn");
+        declineMatchBtn.classList.add("enabled-btn");
+      });
 
-    socket.on("matchFound", (match) => {
-      stopQueueTimer();
+      socket.on("matchFound", (match) => {
+        stopQueueTimer();
+        foundMatch = match;
+        queueStatus.textContent = `Match found vs ${match.opponent}`;
+        enableQueueButtons();
+      });
 
-      foundMatch = match;
-
-      queueStatus.textContent = `Match found vs ${match.opponent}`;
-
-      enableQueueButtons();
-    });
-
-    socket.on("ratingUpdated", (data) => {
-      const newRating = typeof data === "object" ? data.rating : data;
-
-      localStorage.setItem(RATING_KEY, String(newRating));
-      ratingDisplay.textContent = newRating;
-    });
+      socket.on("ratingUpdated", (data) => {
+        const newRating = typeof data === "object" ? data.rating : data;
+        localStorage.setItem(RATING_KEY, String(newRating));
+        ratingDisplay.textContent = newRating;
+      });
+    }
 
     loadProfile();
     buildAvatarGrid();
