@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Infinite Tic Tac Toe</title>
   <link rel="stylesheet" href="index.css" />
+  <script src="/socket.io/socket.io.js"></script>
 </head>
+
 <body>
   <div class="noise"></div>
   <div class="background-glow glow-1"></div>
@@ -30,7 +32,7 @@
 
     <div class="profile-card">
       <button class="avatar-button" id="openAvatarPickerBtn" type="button">
-        <img id="profileAvatar" src="icons/guest.png" alt="Guest avatar" />
+        <img id="profileAvatar" src="icons/guest.png" alt="Profile avatar" />
         <span class="avatar-edit">✦</span>
       </button>
 
@@ -48,8 +50,13 @@
         </div>
 
         <div class="profile-actions">
-          <button class="profile-btn create-btn" id="createAccountBtn" type="button">Create Account</button>
-          <button class="profile-btn stats-btn" id="openStatsBtn" type="button">Statistics</button>
+          <button class="profile-btn create-btn" id="editUsernameBtn" type="button">
+            Change Username
+          </button>
+
+          <button class="profile-btn stats-btn" id="openStatsBtn" type="button">
+            Statistics
+          </button>
         </div>
       </div>
     </div>
@@ -64,8 +71,8 @@
         <p class="tiny-glow">WELCOME TO THE ARENA</p>
         <h2>Choose your path.</h2>
         <p class="hero-description">
-          Battle a bot, invite a friend with a code, or enter the random queue and wait
-          for a worthy opponent.
+          Battle a bot, invite a friend with a code, complete daily challenges,
+          or enter the random queue and wait for a worthy opponent.
         </p>
       </div>
 
@@ -82,10 +89,16 @@
           <span class="btn-subtitle">Create or join with code</span>
         </a>
 
+        <a class="menu-btn friend-btn" href="challenges.html">
+          <div class="btn-accent"></div>
+          <span class="btn-title">Daily Challenges</span>
+          <span class="btn-subtitle">3 missions every day</span>
+        </a>
+
         <button class="menu-btn queue-btn" id="openQueueBtn" type="button">
           <div class="btn-accent"></div>
           <span class="btn-title">Join Random Queue</span>
-          <span class="btn-subtitle">Find a player near your rating</span>
+          <span class="btn-subtitle">Find a real player</span>
         </button>
       </div>
     </section>
@@ -107,6 +120,7 @@
     </div>
   </footer>
 
+  <!-- QUEUE MODAL -->
   <div class="modal-overlay" id="queueModal">
     <div class="modal-card">
       <button class="close-btn" id="closeQueueBtn" type="button">&times;</button>
@@ -114,7 +128,7 @@
       <p class="tiny-glow">MATCHMAKING</p>
       <h3>Random Queue</h3>
       <p class="modal-description">
-        Queue up and wait for another player. Match buttons stay locked until somebody is found.
+        Queue up and wait for another player.
       </p>
 
       <div class="queue-stats">
@@ -124,20 +138,28 @@
         </div>
 
         <div class="stat-box">
-          <span class="stat-label">Average Queue Time</span>
-          <span class="stat-value">00:18</span>
+          <span class="stat-label">Status</span>
+          <span class="stat-value" id="queuePlayers">Online</span>
         </div>
       </div>
 
-      <div class="queue-status" id="queueStatus">Searching for a player...</div>
+      <div class="queue-status" id="queueStatus">
+        Searching for player...
+      </div>
 
       <div class="queue-actions">
-        <button class="action-btn disabled-btn" id="declineMatchBtn" type="button" disabled>Decline Match</button>
-        <button class="action-btn disabled-btn" id="joinMatchBtn" type="button" disabled>Join Match</button>
+        <button class="action-btn disabled-btn" id="declineMatchBtn" type="button" disabled>
+          Leave Queue
+        </button>
+
+        <button class="action-btn disabled-btn" id="joinMatchBtn" type="button" disabled>
+          Join Match
+        </button>
       </div>
     </div>
   </div>
 
+  <!-- AVATAR MODAL -->
   <div class="modal-overlay" id="avatarModal">
     <div class="modal-card avatar-modal-card">
       <button class="close-btn" id="closeAvatarModalBtn" type="button">&times;</button>
@@ -146,40 +168,11 @@
       <h3>Choose your icon</h3>
       <p class="modal-description">Click an icon to use it as your profile picture.</p>
 
-      <div class="avatar-grid">
-        <button class="avatar-choice selected-avatar" type="button" data-avatar="icons/guest.png"><img src="icons/guest.png" alt="Guest icon" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon1.png"><img src="icons/icon1.png" alt="Icon 1" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon2.png"><img src="icons/icon2.png" alt="Icon 2" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon3.png"><img src="icons/icon3.png" alt="Icon 3" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon4.png"><img src="icons/icon4.png" alt="Icon 4" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon5.png"><img src="icons/icon5.png" alt="Icon 5" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon6.png"><img src="icons/icon6.png" alt="Icon 6" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon7.png"><img src="icons/icon7.png" alt="Icon 7" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon8.png"><img src="icons/icon8.png" alt="Icon 8" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon9.png"><img src="icons/icon9.png" alt="Icon 9" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon10.png"><img src="icons/icon10.png" alt="Icon 10" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon11.png"><img src="icons/icon11.png" alt="Icon 11" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon12.png"><img src="icons/icon12.png" alt="Icon 12" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon13.png"><img src="icons/icon13.png" alt="Icon 13" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon14.png"><img src="icons/icon14.png" alt="Icon 14" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon15.png"><img src="icons/icon15.png" alt="Icon 15" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon16.png"><img src="icons/icon16.png" alt="Icon 16" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon17.png"><img src="icons/icon17.png" alt="Icon 17" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon18.png"><img src="icons/icon18.png" alt="Icon 18" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon19.png"><img src="icons/icon19.png" alt="Icon 19" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon20.png"><img src="icons/icon20.png" alt="Icon 20" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon21.png"><img src="icons/icon21.png" alt="Icon 21" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon22.png"><img src="icons/icon22.png" alt="Icon 22" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon23.png"><img src="icons/icon23.png" alt="Icon 23" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon24.png"><img src="icons/icon24.png" alt="Icon 24" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon25.png"><img src="icons/icon25.png" alt="Icon 25" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon26.png"><img src="icons/icon26.png" alt="Icon 26" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon27.png"><img src="icons/icon27.png" alt="Icon 27" /></button>
-        <button class="avatar-choice" type="button" data-avatar="icons/icon28.png"><img src="icons/icon28.png" alt="Icon 28" /></button>
-      </div>
+      <div class="avatar-grid" id="avatarGrid"></div>
     </div>
   </div>
 
+  <!-- STATS MODAL -->
   <div class="modal-overlay" id="statsModal">
     <div class="modal-card stats-modal-card">
       <button class="close-btn" id="closeStatsModalBtn" type="button">&times;</button>
@@ -226,20 +219,27 @@
       </div>
 
       <div class="queue-actions single-action">
-        <button class="action-btn enabled-btn" id="resetStatsBtn" type="button">Reset Statistics</button>
+        <button class="action-btn enabled-btn" id="resetStatsBtn" type="button">
+          Reset Statistics
+        </button>
       </div>
     </div>
   </div>
 
   <script>
+    const socket = io();
+
     const USERNAME_KEY = "itt_username";
     const RATING_KEY = "itt_rating";
     const AVATAR_KEY = "itt_avatar";
     const STATS_KEY = "itt_stats";
+    const SESSION_KEY = "itt_session_id";
 
     const usernameDisplay = document.getElementById("usernameDisplay");
     const ratingDisplay = document.getElementById("ratingDisplay");
     const profileAvatar = document.getElementById("profileAvatar");
+
+    const editUsernameBtn = document.getElementById("editUsernameBtn");
 
     const queueModal = document.getElementById("queueModal");
     const openQueueBtn = document.getElementById("openQueueBtn");
@@ -249,12 +249,10 @@
     const declineMatchBtn = document.getElementById("declineMatchBtn");
     const joinMatchBtn = document.getElementById("joinMatchBtn");
 
-    const createAccountBtn = document.getElementById("createAccountBtn");
-
     const avatarModal = document.getElementById("avatarModal");
     const openAvatarPickerBtn = document.getElementById("openAvatarPickerBtn");
     const closeAvatarModalBtn = document.getElementById("closeAvatarModalBtn");
-    const avatarChoices = document.querySelectorAll(".avatar-choice");
+    const avatarGrid = document.getElementById("avatarGrid");
 
     const openStatsBtn = document.getElementById("openStatsBtn");
     const statsModal = document.getElementById("statsModal");
@@ -269,9 +267,25 @@
     const vsBotHardStat = document.getElementById("vsBotHardStat");
     const vsBotNightmareStat = document.getElementById("vsBotNightmareStat");
 
-    let queueSeconds = 0;
     let queueInterval = null;
-    let foundPlayerTimeout = null;
+    let queueSeconds = 0;
+    let foundMatch = null;
+
+    function getSessionId() {
+      let id = localStorage.getItem(SESSION_KEY);
+
+      if (!id) {
+        if (crypto.randomUUID) {
+          id = crypto.randomUUID();
+        } else {
+          id = "session_" + Math.random().toString(36).slice(2, 14);
+        }
+
+        localStorage.setItem(SESSION_KEY, id);
+      }
+
+      return id;
+    }
 
     function getDefaultStats() {
       return {
@@ -288,12 +302,19 @@
 
     function getStats() {
       const saved = localStorage.getItem(STATS_KEY);
-      if (!saved) return getDefaultStats();
+
+      if (!saved) {
+        const defaultStats = getDefaultStats();
+        localStorage.setItem(STATS_KEY, JSON.stringify(defaultStats));
+        return defaultStats;
+      }
 
       try {
         return JSON.parse(saved);
       } catch {
-        return getDefaultStats();
+        const defaultStats = getDefaultStats();
+        localStorage.setItem(STATS_KEY, JSON.stringify(defaultStats));
+        return defaultStats;
       }
     }
 
@@ -320,38 +341,78 @@
     }
 
     function loadProfile() {
-      const savedUsername = localStorage.getItem(USERNAME_KEY);
-      const savedRating = localStorage.getItem(RATING_KEY);
-      const savedAvatar = localStorage.getItem(AVATAR_KEY);
+      let username = localStorage.getItem(USERNAME_KEY);
+      let rating = localStorage.getItem(RATING_KEY);
+      let avatar = localStorage.getItem(AVATAR_KEY);
 
-      if (!savedUsername) {
-        localStorage.setItem(USERNAME_KEY, "Guest");
-        usernameDisplay.textContent = "Guest";
-      } else {
-        usernameDisplay.textContent = savedUsername;
+      if (!username) {
+        username = "Guest";
+        localStorage.setItem(USERNAME_KEY, username);
       }
 
-      if (!savedRating) {
-        localStorage.setItem(RATING_KEY, "1000");
-        ratingDisplay.textContent = "1000";
-      } else {
-        ratingDisplay.textContent = savedRating;
+      if (!rating) {
+        rating = "1000";
+        localStorage.setItem(RATING_KEY, rating);
       }
 
-      if (!savedAvatar) {
-        localStorage.setItem(AVATAR_KEY, "icons/guest.png");
-        profileAvatar.src = "icons/guest.png";
-      } else {
-        profileAvatar.src = savedAvatar;
+      if (!avatar) {
+        avatar = "icons/guest.png";
+        localStorage.setItem(AVATAR_KEY, avatar);
       }
+
+      getSessionId();
+
+      usernameDisplay.textContent = username;
+      ratingDisplay.textContent = rating;
+      profileAvatar.src = avatar;
+    }
+
+    function getProfilePayload() {
+      return {
+        sessionId: getSessionId(),
+        username: localStorage.getItem(USERNAME_KEY) || "Guest",
+        rating: localStorage.getItem(RATING_KEY) || "1000"
+      };
+    }
+
+    function buildAvatarGrid() {
+      const avatars = ["icons/guest.png"];
+
+      for (let i = 1; i <= 28; i++) {
+        avatars.push(`icons/icon${i}.png`);
+      }
+
+      avatarGrid.innerHTML = "";
+
+      avatars.forEach((avatarPath, index) => {
+        const button = document.createElement("button");
+        button.className = "avatar-choice";
+        button.type = "button";
+        button.dataset.avatar = avatarPath;
+
+        const img = document.createElement("img");
+        img.src = avatarPath;
+        img.alt = index === 0 ? "Guest icon" : `Icon ${index}`;
+
+        button.appendChild(img);
+
+        button.addEventListener("click", () => {
+          localStorage.setItem(AVATAR_KEY, avatarPath);
+          profileAvatar.src = avatarPath;
+          updateSelectedAvatarBorder();
+        });
+
+        avatarGrid.appendChild(button);
+      });
 
       updateSelectedAvatarBorder();
     }
 
     function updateSelectedAvatarBorder() {
       const currentAvatar = localStorage.getItem(AVATAR_KEY) || "icons/guest.png";
+      const avatarChoices = document.querySelectorAll(".avatar-choice");
 
-      avatarChoices.forEach(choice => {
+      avatarChoices.forEach((choice) => {
         if (choice.dataset.avatar === currentAvatar) {
           choice.classList.add("selected-avatar");
         } else {
@@ -363,87 +424,128 @@
     function formatTime(totalSeconds) {
       const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
       const seconds = String(totalSeconds % 60).padStart(2, "0");
+
       return `${minutes}:${seconds}`;
     }
 
-    function resetQueueState() {
-      queueSeconds = 0;
-      queueTimer.textContent = "00:00";
-      queueStatus.textContent = "Searching for a player...";
-
+    function resetQueueButtons() {
       joinMatchBtn.disabled = true;
       declineMatchBtn.disabled = true;
 
-      joinMatchBtn.classList.add("disabled-btn");
-      declineMatchBtn.classList.add("disabled-btn");
-
       joinMatchBtn.classList.remove("enabled-btn");
       declineMatchBtn.classList.remove("enabled-btn");
+
+      joinMatchBtn.classList.add("disabled-btn");
+      declineMatchBtn.classList.add("disabled-btn");
     }
 
-    function startQueue() {
-      resetQueueState();
+    function enableQueueButtons() {
+      joinMatchBtn.disabled = false;
+      declineMatchBtn.disabled = false;
+
+      joinMatchBtn.classList.remove("disabled-btn");
+      declineMatchBtn.classList.remove("disabled-btn");
+
+      joinMatchBtn.classList.add("enabled-btn");
+      declineMatchBtn.classList.add("enabled-btn");
+    }
+
+    function startQueueTimer() {
+      queueSeconds = 0;
+      queueTimer.textContent = "00:00";
+
+      clearInterval(queueInterval);
 
       queueInterval = setInterval(() => {
         queueSeconds++;
         queueTimer.textContent = formatTime(queueSeconds);
       }, 1000);
-
-      foundPlayerTimeout = setTimeout(() => {
-        queueStatus.textContent = "Player found. You can now accept or decline.";
-        joinMatchBtn.disabled = false;
-        declineMatchBtn.disabled = false;
-
-        joinMatchBtn.classList.remove("disabled-btn");
-        declineMatchBtn.classList.remove("disabled-btn");
-
-        joinMatchBtn.classList.add("enabled-btn");
-        declineMatchBtn.classList.add("enabled-btn");
-      }, 5000);
     }
 
-    function stopQueue() {
+    function stopQueueTimer() {
       clearInterval(queueInterval);
-      clearTimeout(foundPlayerTimeout);
       queueInterval = null;
-      foundPlayerTimeout = null;
     }
+
+    function joinQueue() {
+      resetQueueButtons();
+      queueStatus.textContent = "Searching for player...";
+      foundMatch = null;
+
+      startQueueTimer();
+
+      socket.emit("joinQueue", getProfilePayload());
+    }
+
+    function leaveQueue() {
+      stopQueueTimer();
+
+      socket.emit("leaveQueue", getProfilePayload());
+
+      queueStatus.textContent = "You left the queue.";
+      foundMatch = null;
+
+      resetQueueButtons();
+    }
+
+    editUsernameBtn.addEventListener("click", () => {
+      const currentUsername = localStorage.getItem(USERNAME_KEY) || "Guest";
+      const newUsername = prompt("Enter your new username:", currentUsername);
+
+      if (newUsername === null) return;
+
+      const cleanUsername = newUsername.trim();
+
+      if (cleanUsername.length < 3) {
+        alert("Username must be at least 3 characters.");
+        return;
+      }
+
+      if (cleanUsername.length > 16) {
+        alert("Username must be 16 characters or less.");
+        return;
+      }
+
+      localStorage.setItem(USERNAME_KEY, cleanUsername);
+      usernameDisplay.textContent = cleanUsername;
+    });
 
     openQueueBtn.addEventListener("click", () => {
       queueModal.classList.add("show");
-      startQueue();
+      joinQueue();
     });
 
     closeQueueBtn.addEventListener("click", () => {
-      stopQueue();
+      leaveQueue();
       queueModal.classList.remove("show");
     });
 
     declineMatchBtn.addEventListener("click", () => {
-      if (declineMatchBtn.disabled) return;
-      stopQueue();
-      queueStatus.textContent = "Match declined.";
-    });
-
-    joinMatchBtn.addEventListener("click", () => {
-      if (joinMatchBtn.disabled) return;
-      const gameId = "queue_" + Math.random().toString(36).slice(2, 10);
-      window.location.href = `game.html?mode=queue&gameId=${gameId}`;
+      leaveQueue();
     });
 
     queueModal.addEventListener("click", (e) => {
       if (e.target === queueModal) {
-        stopQueue();
+        leaveQueue();
         queueModal.classList.remove("show");
       }
     });
 
-    createAccountBtn.addEventListener("click", () => {
-      alert("Later this button can open your real signup page.");
+    joinMatchBtn.addEventListener("click", () => {
+      if (!foundMatch) return;
+
+      window.location.href =
+        `game.html?mode=queue` +
+        `&gameId=${encodeURIComponent(foundMatch.gameId)}` +
+        `&symbol=${encodeURIComponent(foundMatch.symbol)}` +
+        `&sessionId=${encodeURIComponent(foundMatch.sessionId)}` +
+        `&opponentSessionId=${encodeURIComponent(foundMatch.opponentSessionId)}` +
+        `&opponent=${encodeURIComponent(foundMatch.opponent)}`;
     });
 
     openAvatarPickerBtn.addEventListener("click", () => {
       avatarModal.classList.add("show");
+      updateSelectedAvatarBorder();
     });
 
     closeAvatarModalBtn.addEventListener("click", () => {
@@ -454,15 +556,6 @@
       if (e.target === avatarModal) {
         avatarModal.classList.remove("show");
       }
-    });
-
-    avatarChoices.forEach(choice => {
-      choice.addEventListener("click", () => {
-        const selectedAvatar = choice.dataset.avatar;
-        localStorage.setItem(AVATAR_KEY, selectedAvatar);
-        profileAvatar.src = selectedAvatar;
-        updateSelectedAvatarBorder();
-      });
     });
 
     openStatsBtn.addEventListener("click", () => {
@@ -481,11 +574,39 @@
     });
 
     resetStatsBtn.addEventListener("click", () => {
-      localStorage.removeItem(STATS_KEY);
+      const confirmReset = confirm("Reset your local stats?");
+      if (!confirmReset) return;
+
+      localStorage.setItem(STATS_KEY, JSON.stringify(getDefaultStats()));
       renderStats();
     });
 
+    socket.on("queueWaiting", () => {
+      queueStatus.textContent = "Waiting for opponent...";
+      declineMatchBtn.disabled = false;
+      declineMatchBtn.classList.remove("disabled-btn");
+      declineMatchBtn.classList.add("enabled-btn");
+    });
+
+    socket.on("matchFound", (match) => {
+      stopQueueTimer();
+
+      foundMatch = match;
+
+      queueStatus.textContent = `Match found vs ${match.opponent}`;
+
+      enableQueueButtons();
+    });
+
+    socket.on("ratingUpdated", (data) => {
+      const newRating = typeof data === "object" ? data.rating : data;
+
+      localStorage.setItem(RATING_KEY, String(newRating));
+      ratingDisplay.textContent = newRating;
+    });
+
     loadProfile();
+    buildAvatarGrid();
   </script>
 </body>
 </html>

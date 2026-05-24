@@ -6,6 +6,7 @@
   <title>Play vs Bot</title>
   <link rel="stylesheet" href="lobby.css" />
 </head>
+
 <body>
   <div class="background-glow glow-1"></div>
   <div class="background-glow glow-2"></div>
@@ -33,30 +34,32 @@
   <main class="lobby-main">
     <section class="lobby-card">
       <p class="tiny-glow">BOT MATCH</p>
+
       <h2>Select Difficulty</h2>
+
       <p class="lobby-description">
-        You always go first. Pick your challenge level, then press join match.
+        You always go first. Easy and Medium are casual. Hard and Nightmare affect rating.
       </p>
 
       <div class="difficulty-grid">
         <button class="difficulty-btn" data-difficulty="easy" type="button">
           <span class="difficulty-title">Easy</span>
-          <span class="difficulty-subtitle">Forgiving and simple</span>
+          <span class="difficulty-subtitle">Casual · No rating change</span>
         </button>
 
         <button class="difficulty-btn" data-difficulty="medium" type="button">
           <span class="difficulty-title">Medium</span>
-          <span class="difficulty-subtitle">Balanced and reactive</span>
+          <span class="difficulty-subtitle">Casual · No rating change</span>
         </button>
 
         <button class="difficulty-btn" data-difficulty="hard" type="button">
           <span class="difficulty-title">Hard</span>
-          <span class="difficulty-subtitle">Punishes mistakes</span>
+          <span class="difficulty-subtitle">Ranked · Rating changes</span>
         </button>
 
         <button class="difficulty-btn nightmare-btn" data-difficulty="nightmare" type="button">
           <span class="difficulty-title">Nightmare 💀</span>
-          <span class="difficulty-subtitle">The bot wants blood</span>
+          <span class="difficulty-subtitle">Ranked · Rating changes</span>
         </button>
       </div>
 
@@ -91,16 +94,34 @@
       ratingDisplay.textContent = savedRating;
     }
 
+    function formatDifficultyName(difficulty) {
+      if (difficulty === "nightmare") {
+        return "Nightmare 💀";
+      }
+
+      return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+    }
+
+    function isRankedBotDifficulty(difficulty) {
+      return difficulty === "hard" || difficulty === "nightmare";
+    }
+
     difficultyButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        difficultyButtons.forEach((btn) => btn.classList.remove("selected"));
+        difficultyButtons.forEach((btn) => {
+          btn.classList.remove("selected");
+        });
+
         button.classList.add("selected");
 
         currentDifficulty = button.dataset.difficulty;
+
+        const rankedText = isRankedBotDifficulty(currentDifficulty)
+          ? "Ranked"
+          : "Casual";
+
         selectedDifficulty.textContent =
-          currentDifficulty === "nightmare"
-            ? "Nightmare 💀"
-            : currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
+          `${formatDifficultyName(currentDifficulty)} (${rankedText})`;
       });
     });
 
@@ -110,8 +131,19 @@
         return;
       }
 
-      const gameId = "bot_" + currentDifficulty + "_" + Math.random().toString(36).slice(2, 10);
-      window.location.href = `game.html?mode=bot&difficulty=${currentDifficulty}&gameId=${gameId}`;
+      const rankedBot = isRankedBotDifficulty(currentDifficulty);
+
+      const gameId =
+        "bot_" +
+        currentDifficulty +
+        "_" +
+        Math.random().toString(36).slice(2, 10);
+
+      window.location.href =
+        `game.html?mode=bot` +
+        `&difficulty=${encodeURIComponent(currentDifficulty)}` +
+        `&rankedBot=${rankedBot}` +
+        `&gameId=${encodeURIComponent(gameId)}`;
     });
 
     loadProfile();

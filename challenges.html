@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Challenges</title>
+  <link rel="stylesheet" href="lobby.css" />
+</head>
+
+<body>
+  <div class="background-glow glow-1"></div>
+  <div class="background-glow glow-2"></div>
+
+  <header class="topbar">
+    <div class="logo-wrap">
+      <a href="index.html" class="back-link">← Back</a>
+      <h1 class="logo">DAILY CHALLENGES</h1>
+      <p class="subtitle">Three random missions every day.</p>
+    </div>
+
+    <div class="player-bar">
+      <div class="player-pill">
+        <span class="label">Username</span>
+        <span id="usernameDisplay">Guest</span>
+      </div>
+
+      <div class="player-pill">
+        <span class="label">Rating</span>
+        <span id="ratingDisplay">1000</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="lobby-main">
+    <section class="lobby-card">
+      <p class="tiny-glow">TODAY'S MISSIONS</p>
+
+      <h2>Daily Challenges</h2>
+
+      <p class="lobby-description">
+        Complete these challenges before midnight. New ones appear every day.
+      </p>
+
+      <div class="selection-box">
+        <span class="selection-label">Refreshes In</span>
+        <span class="selection-value" id="refreshTimer">--:--:--</span>
+      </div>
+
+      <div class="difficulty-grid" id="challengeGrid"></div>
+
+      <button class="primary-btn" type="button" onclick="window.location.href='index.html'">
+        Back to Menu
+      </button>
+    </section>
+  </main>
+
+  <script>
+    const USERNAME_KEY = "itt_username";
+    const RATING_KEY = "itt_rating";
+    const DAILY_CHALLENGES_KEY = "itt_daily_challenges";
+    const DAILY_CHALLENGES_DATE_KEY = "itt_daily_challenges_date";
+
+    const usernameDisplay = document.getElementById("usernameDisplay");
+    const ratingDisplay = document.getElementById("ratingDisplay");
+    const challengeGrid = document.getElementById("challengeGrid");
+    const refreshTimer = document.getElementById("refreshTimer");
+
+    const challengePool = [
+      {
+        title: "First Blood",
+        description: "Win 1 match today.",
+        reward: "+10 XP"
+      },
+      {
+        title: "Bot Hunter",
+        description: "Defeat any bot difficulty.",
+        reward: "+15 XP"
+      },
+      {
+        title: "Ranked Courage",
+        description: "Play 1 Hard or Nightmare bot match.",
+        reward: "+20 XP"
+      },
+      {
+        title: "No Fear",
+        description: "Play 1 online queue match.",
+        reward: "+25 XP"
+      },
+      {
+        title: "Sharp Mind",
+        description: "Win without letting the enemy get 2 in a row.",
+        reward: "+30 XP"
+      },
+      {
+        title: "Comeback King",
+        description: "Win after your opponent places first threat.",
+        reward: "+30 XP"
+      },
+      {
+        title: "Practice Arc",
+        description: "Play 3 bot matches.",
+        reward: "+20 XP"
+      },
+      {
+        title: "Nightmare Fuel",
+        description: "Survive a Nightmare bot match.",
+        reward: "+35 XP"
+      },
+      {
+        title: "Clean Sweep",
+        description: "Win 2 matches today.",
+        reward: "+40 XP"
+      },
+      {
+        title: "Arena Grinder",
+        description: "Play 5 total matches today.",
+        reward: "+50 XP"
+      }
+    ];
+
+    function loadProfile() {
+      const savedUsername = localStorage.getItem(USERNAME_KEY) || "Guest";
+      const savedRating = localStorage.getItem(RATING_KEY) || "1000";
+
+      usernameDisplay.textContent = savedUsername;
+      ratingDisplay.textContent = savedRating;
+    }
+
+    function getTodayKey() {
+      const now = new Date();
+
+      return now.getFullYear() + "-" +
+        String(now.getMonth() + 1).padStart(2, "0") + "-" +
+        String(now.getDate()).padStart(2, "0");
+    }
+
+    function seededRandom(seed) {
+      let value = seed;
+
+      return function () {
+        value = (value * 9301 + 49297) % 233280;
+        return value / 233280;
+      };
+    }
+
+    function dateToSeed(dateString) {
+      let seed = 0;
+
+      for (let i = 0; i < dateString.length; i++) {
+        seed += dateString.charCodeAt(i) * (i + 1);
+      }
+
+      return seed;
+    }
+
+    function generateDailyChallenges() {
+      const today = getTodayKey();
+      const savedDate = localStorage.getItem(DAILY_CHALLENGES_DATE_KEY);
+      const savedChallenges = localStorage.getItem(DAILY_CHALLENGES_KEY);
+
+      if (savedDate === today && savedChallenges) {
+        return JSON.parse(savedChallenges);
+      }
+
+      const random = seededRandom(dateToSeed(today));
+      const poolCopy = [...challengePool];
+      const selected = [];
+
+      while (selected.length < 3 && poolCopy.length > 0) {
+        const index = Math.floor(random() * poolCopy.length);
+        selected.push(poolCopy.splice(index, 1)[0]);
+      }
+
+      localStorage.setItem(DAILY_CHALLENGES_DATE_KEY, today);
+      localStorage.setItem(DAILY_CHALLENGES_KEY, JSON.stringify(selected));
+
+      return selected;
+    }
+
+    function renderChallenges() {
+      const challenges = generateDailyChallenges();
+
+      challengeGrid.innerHTML = "";
+
+      challenges.forEach((challenge, index) => {
+        const card = document.createElement("div");
+        card.className = "difficulty-btn selected";
+
+        card.innerHTML = `
+          <span class="difficulty-title">${index + 1}. ${challenge.title}</span>
+          <span class="difficulty-subtitle">${challenge.description}</span>
+          <span class="difficulty-subtitle">Reward: ${challenge.reward}</span>
+        `;
+
+        challengeGrid.appendChild(card);
+      });
+    }
+
+    function updateRefreshTimer() {
+      const now = new Date();
+
+      const midnight = new Date();
+      midnight.setHours(24, 0, 0, 0);
+
+      const diff = midnight - now;
+
+      const hours = Math.floor(diff / 1000 / 60 / 60);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      refreshTimer.textContent =
+        String(hours).padStart(2, "0") + ":" +
+        String(minutes).padStart(2, "0") + ":" +
+        String(seconds).padStart(2, "0");
+    }
+
+    loadProfile();
+    renderChallenges();
+    updateRefreshTimer();
+
+    setInterval(updateRefreshTimer, 1000);
+  </script>
+</body>
+</html>
