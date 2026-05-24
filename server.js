@@ -1,11 +1,41 @@
 const express = require("express");
 const http = require("http");
-const path = require("path");
 const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+const allowedOrigins = [
+  "https://tictactoeinfinity.netlify.app",
+  "http://localhost:3000",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500"
+];
+
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 app.use(express.static(__dirname));
 
@@ -54,7 +84,11 @@ function ratingChange(winnerRating, loserRating) {
 }
 
 io.on("connection", (socket) => {
+  console.log("Player connected:", socket.id);
+
   socket.on("joinQueue", (profile) => {
+    console.log("joinQueue:", profile);
+
     const player = getPlayer(socket, profile);
     if (!player) return;
 
@@ -98,7 +132,6 @@ io.on("connection", (socket) => {
     if (!profile?.sessionId) return;
 
     queue = queue.filter((p) => p.sessionId !== profile.sessionId);
-
     socket.emit("leftQueue");
   });
 
@@ -156,6 +189,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     queue = queue.filter((p) => p.socketId !== socket.id);
+    console.log("Player disconnected:", socket.id);
   });
 });
 
