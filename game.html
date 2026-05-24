@@ -12,7 +12,7 @@
 
   <header class="game-topbar">
     <div class="left-panel">
-      <a href="index.html" class="back-link">← Back to Menu</a>
+      <a href="index.html" class="back-link" id="backLink">← Back to Menu</a>
       <h1 class="game-title">INFINITE TIC TAC TOE</h1>
       <p class="game-subtitle">3 marks max. Every 4th move erases your oldest one.</p>
     </div>
@@ -34,7 +34,7 @@
     <section class="side-card player-card x-card">
       <p class="tiny-label">PLAYER X</p>
       <h2 id="playerXName">You</h2>
-      <p class="player-role x-text">Neon Blue X</p>
+      <p class="player-role x-text" id="xRoleText">Neon Blue X</p>
       <div class="mark-preview x-preview">
         <div class="x-mini"></div>
       </div>
@@ -42,7 +42,7 @@
 
     <section class="center-stage">
       <div class="status-card">
-        <div class="turn-banner" id="turnBanner">Your turn</div>
+        <div class="turn-banner" id="turnBanner">Connecting...</div>
 
         <div class="status-grid">
           <div class="status-box">
@@ -52,7 +52,7 @@
 
           <div class="status-box">
             <span class="status-label">Match State</span>
-            <span class="status-value" id="matchStateDisplay">In Progress</span>
+            <span class="status-value" id="matchStateDisplay">Loading</span>
           </div>
         </div>
       </div>
@@ -73,13 +73,14 @@
 
       <div class="controls">
         <button class="control-btn" id="restartBtn" type="button">Restart Match</button>
+        <button class="control-btn" id="leaveBtn" type="button" style="display:none;">Leave Game</button>
       </div>
     </section>
 
     <section class="side-card player-card o-card">
       <p class="tiny-label">PLAYER O</p>
       <h2 id="playerOName">Opponent</h2>
-      <p class="player-role o-text">Blood Red O</p>
+      <p class="player-role o-text" id="oRoleText">Blood Red O</p>
       <div class="mark-preview o-preview">
         <div class="o-mini"></div>
       </div>
@@ -94,18 +95,32 @@
     </div>
   </div>
 
+  <!-- Socket.IO client from your Render backend. Change this URL if your backend URL changes. -->
+  <script src="https://tictactoe-infinity-hg61.onrender.com/socket.io/socket.io.js"></script>
+
   <script>
+    const SERVER_URL = "https://tictactoe-infinity-hg61.onrender.com";
     const STATS_KEY = "itt_stats";
+    const SESSION_KEY = "itt_session_id";
 
     const params = new URLSearchParams(window.location.search);
 
     const mode = params.get("mode") || "bot";
     const difficulty = params.get("difficulty") || "medium";
-    const gameId = params.get("gameId") || ("game_" + Math.random().toString(36).slice(2, 10));
-    const player1 = params.get("player1") || localStorage.getItem("itt_username") || "You";
-    const player2 =
-      params.get("player2") ||
-      (mode === "bot" ? `Bot (${difficulty})` : mode === "queue" ? "Queued Opponent" : "Friend");
+    let gameId = params.get("gameId") || "";
+    let mySymbol = params.get("symbol") || "X";
+    let mySessionId = params.get("sessionId") || localStorage.getItem(SESSION_KEY);
+
+    if (!mySessionId) {
+      mySessionId = "session_" + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+      localStorage.setItem(SESSION_KEY, mySessionId);
+    }
+
+    const username = params.get("username") || params.get("player1") || localStorage.getItem("itt_username") || "Guest";
+    localStorage.setItem("itt_username", username);
+
+    let player1 = params.get("player1") || username;
+    let player2 = params.get("player2") || (mode === "bot" ? `Bot (${difficulty})` : "Opponent");
 
     const modeDisplay = document.getElementById("modeDisplay");
     const gameIdDisplay = document.getElementById("gameIdDisplay");
@@ -115,22 +130,21 @@
     const currentTurnDisplay = document.getElementById("currentTurnDisplay");
     const matchStateDisplay = document.getElementById("matchStateDisplay");
     const restartBtn = document.getElementById("restartBtn");
+    const leaveBtn = document.getElementById("leaveBtn");
     const closeResultBtn = document.getElementById("closeResultBtn");
     const resultModal = document.getElementById("resultModal");
     const resultTitle = document.getElementById("resultTitle");
     const resultText = document.getElementById("resultText");
     const boardElement = document.getElementById("board");
     const cells = document.querySelectorAll(".cell");
+    const xRoleText = document.getElementById("xRoleText");
+    const oRoleText = document.getElementById("oRoleText");
+    const backLink = document.getElementById("backLink");
 
     const WIN_LINES = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6]
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
     ];
 
     let board = Array(9).fill("");
@@ -140,10 +154,20 @@
     let oMoves = [];
     let winningLine = null;
     let resultRecorded = false;
+    let socket = null;
+    let onlineReady = false;
+    let matchAccepted = false;
 
     const isBotGame = mode === "bot";
-    const isFriendGame = mode === "friend";
-    const isQueueGame = mode === "queue";
+    const isOnlineGame = mode === "queue" || mode === "online" || mode === "friend";
+
+    function cleanText(value) {
+      try {
+        return decodeURIComponent(String(value || ""));
+      } catch {
+        return String(value || "");
+      }
+    }
 
     function getDefaultStats() {
       return {
@@ -161,12 +185,7 @@
     function getStats() {
       const saved = localStorage.getItem(STATS_KEY);
       if (!saved) return getDefaultStats();
-
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return getDefaultStats();
-      }
+      try { return JSON.parse(saved); } catch { return getDefaultStats(); }
     }
 
     function saveStats(stats) {
@@ -174,6 +193,7 @@
     }
 
     function recordMatchResult(result) {
+      if (resultRecorded) return;
       const stats = getStats();
 
       if (result === "win") stats.overall.wins++;
@@ -182,7 +202,6 @@
 
       if (mode === "bot") {
         const botBucket = stats.vsBot[difficulty] || stats.vsBot.medium;
-
         if (result === "win") botBucket.wins++;
         else if (result === "loss") botBucket.losses++;
         else botBucket.draws++;
@@ -193,19 +212,22 @@
       }
 
       saveStats(stats);
+      resultRecorded = true;
     }
 
     function setupHeader() {
-      modeDisplay.textContent =
-        mode === "bot"
-          ? `Bot - ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`
-          : mode === "friend"
-          ? "Friend Match"
-          : "Random Queue";
+      modeDisplay.textContent = isBotGame
+        ? `Bot - ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`
+        : "Online Multiplayer";
 
-      gameIdDisplay.textContent = gameId;
-      playerXName.textContent = decodeURIComponent(player1);
-      playerOName.textContent = decodeURIComponent(player2);
+      gameIdDisplay.textContent = gameId || "----";
+      playerXName.textContent = cleanText(player1);
+      playerOName.textContent = cleanText(player2);
+
+      if (isOnlineGame) {
+        restartBtn.textContent = "Request Rematch";
+        leaveBtn.style.display = "inline-flex";
+      }
     }
 
     function createXMarkup() {
@@ -234,7 +256,6 @@
 
     function removeOldestIfNeeded(symbol) {
       const movesArray = symbol === "X" ? xMoves : oMoves;
-
       if (movesArray.length >= 3) {
         const oldestIndex = movesArray.shift();
         board[oldestIndex] = "";
@@ -244,12 +265,12 @@
     function addMove(symbol, index) {
       removeOldestIfNeeded(symbol);
       board[index] = symbol;
+      if (symbol === "X") xMoves.push(index);
+      else oMoves.push(index);
+    }
 
-      if (symbol === "X") {
-        xMoves.push(index);
-      } else {
-        oMoves.push(index);
-      }
+    function isMyOnlineTurn() {
+      return isOnlineGame && onlineReady && !gameOver && currentTurn === mySymbol;
     }
 
     function renderBoard() {
@@ -271,22 +292,14 @@
       });
 
       if (!gameOver) {
-        if (xMoves.length === 3) {
-          const nextToFadeX = xMoves[0];
-          if (board[nextToFadeX] === "X") {
-            cells[nextToFadeX].classList.add("fading-next");
-          }
-        }
-
-        if (oMoves.length === 3) {
-          const nextToFadeO = oMoves[0];
-          if (board[nextToFadeO] === "O") {
-            cells[nextToFadeO].classList.add("fading-next");
-          }
-        }
+        if (xMoves.length === 3 && board[xMoves[0]] === "X") cells[xMoves[0]].classList.add("fading-next");
+        if (oMoves.length === 3 && board[oMoves[0]] === "O") cells[oMoves[0]].classList.add("fading-next");
       }
 
-      const playerCanInteract = currentTurn === "X" && !gameOver;
+      const playerCanInteract = isBotGame
+        ? currentTurn === "X" && !gameOver
+        : isMyOnlineTurn();
+
       if (!playerCanInteract) {
         boardElement.classList.add("board-locked");
         cells.forEach(cell => cell.classList.add("locked"));
@@ -301,19 +314,45 @@
 
       if (gameOver) return;
 
+      if (isOnlineGame && !onlineReady) {
+        turnBanner.textContent = "Waiting for match...";
+        turnBanner.className = "turn-banner";
+        return;
+      }
+
+      if (isOnlineGame) {
+        if (currentTurn === mySymbol) {
+          turnBanner.textContent = "Your turn";
+          turnBanner.className = `turn-banner turn-${mySymbol.toLowerCase()}`;
+        } else {
+          turnBanner.textContent = "Opponent's turn";
+          turnBanner.className = `turn-banner turn-${currentTurn.toLowerCase()}`;
+        }
+        return;
+      }
+
       if (currentTurn === "X") {
-        turnBanner.textContent = `${decodeURIComponent(player1)}'s turn`;
+        turnBanner.textContent = `${cleanText(player1)}'s turn`;
         turnBanner.className = "turn-banner turn-x";
       } else {
-        turnBanner.textContent = `${decodeURIComponent(player2)}'s turn`;
+        turnBanner.textContent = `${cleanText(player2)}'s turn`;
         turnBanner.className = "turn-banner turn-o";
       }
     }
 
-    function openResult(title, text) {
+    function openResult(title, text, buttonText = "Close", onClick = null) {
       resultTitle.textContent = title;
       resultText.textContent = text;
+      closeResultBtn.textContent = buttonText;
+      closeResultBtn.onclick = () => {
+        resultModal.classList.remove("show");
+        if (onClick) onClick();
+      };
       resultModal.classList.add("show");
+    }
+
+    function closeResult() {
+      resultModal.classList.remove("show");
     }
 
     function endGame(winner) {
@@ -322,23 +361,18 @@
       renderBoard();
       updateTurnUI();
 
-      if (!resultRecorded) {
-        if (winner === "X") {
-          recordMatchResult("win");
-        } else if (winner === "O") {
-          recordMatchResult("loss");
-        } else {
-          recordMatchResult("draw");
-        }
-        resultRecorded = true;
-      }
-
       if (winner === "X") {
-        openResult("X Wins", `${decodeURIComponent(player1)} wins the match.`);
+        openResult("X Wins", `${cleanText(player1)} wins the match.`);
       } else if (winner === "O") {
-        openResult("O Wins", `${decodeURIComponent(player2)} wins the match.`);
+        openResult("O Wins", `${cleanText(player2)} wins the match.`);
       } else {
         openResult("Draw", "The board is full and nobody won.");
+      }
+
+      if (isBotGame) {
+        if (winner === "X") recordMatchResult("win");
+        else if (winner === "O") recordMatchResult("loss");
+        else recordMatchResult("draw");
       }
     }
 
@@ -366,18 +400,21 @@
     }
 
     function handlePlayerMove(index) {
-      if (gameOver) return;
-      if (currentTurn !== "X") return;
-      if (board[index] !== "") return;
+      if (gameOver || board[index] !== "") return;
 
+      if (isOnlineGame) {
+        if (!socket || !onlineReady || currentTurn !== mySymbol) return;
+        socket.emit("playerMove", { gameId, sessionId: mySessionId, index });
+        return;
+      }
+
+      if (currentTurn !== "X") return;
       addMove("X", index);
       afterMove("X");
     }
 
     function getAvailableMoves() {
-      return board
-        .map((value, index) => (value === "" ? index : null))
-        .filter(value => value !== null);
+      return board.map((value, index) => (value === "" ? index : null)).filter(value => value !== null);
     }
 
     function simulateMoveCheck(symbol, index, boardState, xState, oState) {
@@ -395,11 +432,8 @@
       targetMoves.push(index);
 
       for (const [a, b, c] of WIN_LINES) {
-        if (testBoard[a] === symbol && testBoard[b] === symbol && testBoard[c] === symbol) {
-          return true;
-        }
+        if (testBoard[a] === symbol && testBoard[b] === symbol && testBoard[c] === symbol) return true;
       }
-
       return false;
     }
 
@@ -415,71 +449,36 @@
       const corners = [0, 2, 6, 8].filter(i => board[i] === "");
       const edges = [1, 3, 5, 7].filter(i => board[i] === "");
 
-      for (const move of available) {
-        if (simulateMoveCheck("O", move, board, xMoves, oMoves)) {
-          return move;
-        }
-      }
-
-      for (const move of available) {
-        if (simulateMoveCheck("X", move, board, xMoves, oMoves)) {
-          return move;
-        }
-      }
-
+      for (const move of available) if (simulateMoveCheck("O", move, board, xMoves, oMoves)) return move;
+      for (const move of available) if (simulateMoveCheck("X", move, board, xMoves, oMoves)) return move;
       if (available.includes(center)) return center;
       if (corners.length) return randomChoice(corners);
       if (edges.length) return randomChoice(edges);
-
       return randomChoice(available);
     }
 
     function getMediumMove() {
       const available = getAvailableMoves();
       if (!available.length) return null;
-
-      if (Math.random() < 0.65) {
-        return getStrategicMove();
-      }
-
-      return randomChoice(available);
+      return Math.random() < 0.65 ? getStrategicMove() : randomChoice(available);
     }
 
     function getEasyMove() {
       const available = getAvailableMoves();
       if (!available.length) return null;
-
-      if (Math.random() < 0.25) {
-        return getStrategicMove();
-      }
-
-      return randomChoice(available);
+      return Math.random() < 0.25 ? getStrategicMove() : randomChoice(available);
     }
 
     function getNightmareMove() {
       const available = getAvailableMoves();
       if (!available.length) return null;
-
-      for (const move of available) {
-        if (simulateMoveCheck("O", move, board, xMoves, oMoves)) {
-          return move;
-        }
-      }
-
-      for (const move of available) {
-        if (simulateMoveCheck("X", move, board, xMoves, oMoves)) {
-          return move;
-        }
-      }
-
+      for (const move of available) if (simulateMoveCheck("O", move, board, xMoves, oMoves)) return move;
+      for (const move of available) if (simulateMoveCheck("X", move, board, xMoves, oMoves)) return move;
       if (board[4] === "") return 4;
-
       const corners = [0, 2, 6, 8].filter(i => board[i] === "");
       if (corners.length) return randomChoice(corners);
-
       const edges = [1, 3, 5, 7].filter(i => board[i] === "");
       if (edges.length) return randomChoice(edges);
-
       return randomChoice(available);
     }
 
@@ -487,53 +486,180 @@
       if (gameOver || currentTurn !== "O") return;
 
       let move = null;
-
       switch (difficulty) {
-        case "easy":
-          move = getEasyMove();
-          break;
-        case "medium":
-          move = getMediumMove();
-          break;
-        case "hard":
-          move = getStrategicMove();
-          break;
-        case "nightmare":
-          move = getNightmareMove();
-          break;
-        default:
-          move = getMediumMove();
+        case "easy": move = getEasyMove(); break;
+        case "medium": move = getMediumMove(); break;
+        case "hard": move = getStrategicMove(); break;
+        case "nightmare": move = getNightmareMove(); break;
+        default: move = getMediumMove();
       }
 
       if (move === null || board[move] !== "") return;
-
       addMove("O", move);
       afterMove("O");
     }
 
-    function handleOtherPlayerMockMove() {
-      if (gameOver || currentTurn !== "O" || isBotGame) return;
+    function applyServerGameState(game) {
+      gameId = game.gameId || gameId;
+      board = Array.isArray(game.board) ? [...game.board] : Array(9).fill("");
+      xMoves = Array.isArray(game.xMoves) ? [...game.xMoves] : [];
+      oMoves = Array.isArray(game.oMoves) ? [...game.oMoves] : [];
+      currentTurn = game.currentTurn || "X";
+      gameOver = Boolean(game.gameOver);
+      winningLine = Array.isArray(game.winningLine) ? game.winningLine : null;
+      player1 = game.xName || player1;
+      player2 = game.oName || player2;
+      onlineReady = true;
 
-      const available = getAvailableMoves();
-      if (!available.length) return;
+      playerXName.textContent = cleanText(player1) + (mySymbol === "X" ? " (You)" : "");
+      playerOName.textContent = cleanText(player2) + (mySymbol === "O" ? " (You)" : "");
+      xRoleText.textContent = mySymbol === "X" ? "Neon Blue X - You" : "Neon Blue X";
+      oRoleText.textContent = mySymbol === "O" ? "Blood Red O - You" : "Blood Red O";
+      gameIdDisplay.textContent = gameId;
 
-      const move = randomChoice(available);
-      addMove("O", move);
-      afterMove("O");
+      if (gameOver) {
+        if (game.winner) {
+          matchStateDisplay.textContent = `${game.winner} Wins`;
+          const didWin = game.winner === mySymbol;
+          turnBanner.textContent = didWin ? "You won!" : "You lost.";
+          turnBanner.className = `turn-banner turn-${game.winner.toLowerCase()}`;
+          recordMatchResult(didWin ? "win" : "loss");
+          openResult(didWin ? "You Win" : "You Lose", `${game.winner} wins the match. Click Request Rematch if you want another game.`);
+        } else {
+          matchStateDisplay.textContent = "Draw";
+          turnBanner.textContent = "Draw";
+          recordMatchResult("draw");
+          openResult("Draw", "Nobody won. Click Request Rematch if you want another game.");
+        }
+      } else {
+        resultRecorded = false;
+        matchStateDisplay.textContent = "In Progress";
+      }
+
+      updateTurnUI();
+      renderBoard();
+    }
+
+    function connectOnline() {
+      if (typeof io === "undefined") {
+        matchStateDisplay.textContent = "Socket Error";
+        openResult("Connection Error", "Socket.IO did not load. Check your Render server URL.");
+        return;
+      }
+
+      socket = io(SERVER_URL, {
+        transports: ["websocket", "polling"],
+        withCredentials: true
+      });
+
+      socket.on("connect", () => {
+        matchStateDisplay.textContent = "Connected";
+
+        if (gameId) {
+          socket.emit("joinGameRoom", { gameId });
+          turnBanner.textContent = "Joining game room...";
+        } else {
+          socket.emit("joinQueue", {
+            sessionId: mySessionId,
+            username,
+            rating: Number(localStorage.getItem("itt_rating")) || 1000
+          });
+          turnBanner.textContent = "Searching for opponent...";
+          matchStateDisplay.textContent = "In Queue";
+        }
+      });
+
+      socket.on("queueWaiting", () => {
+        turnBanner.textContent = "Waiting for opponent...";
+        matchStateDisplay.textContent = "In Queue";
+      });
+
+      socket.on("matchFound", (match) => {
+        gameId = match.gameId;
+        mySymbol = match.symbol;
+        mySessionId = match.sessionId || mySessionId;
+        localStorage.setItem(SESSION_KEY, mySessionId);
+        gameIdDisplay.textContent = gameId;
+        matchStateDisplay.textContent = "Match Found";
+
+        openResult(
+          "Match Found",
+          `Opponent found: ${cleanText(match.opponent)}. Press Accept to start.`,
+          "Accept Match",
+          () => {
+            matchAccepted = true;
+            socket.emit("acceptMatch", { gameId, sessionId: mySessionId });
+            turnBanner.textContent = "Waiting for opponent to accept...";
+            matchStateDisplay.textContent = "Accept Sent";
+          }
+        );
+      });
+
+      socket.on("waitingForOpponentAccept", () => {
+        turnBanner.textContent = "Waiting for opponent to accept...";
+        matchStateDisplay.textContent = "Waiting";
+      });
+
+      socket.on("startOnlineGame", (data) => {
+        closeResult();
+        gameId = data.gameId;
+        mySymbol = data.symbol;
+        mySessionId = data.sessionId || mySessionId;
+        player1 = data.xName || player1;
+        player2 = data.oName || player2;
+        localStorage.setItem(SESSION_KEY, mySessionId);
+        socket.emit("joinGameRoom", { gameId });
+        onlineReady = true;
+        matchStateDisplay.textContent = "In Progress";
+        gameIdDisplay.textContent = gameId;
+      });
+
+      socket.on("gameState", applyServerGameState);
+
+      socket.on("rematchStarted", (game) => {
+        closeResult();
+        applyServerGameState(game);
+        turnBanner.textContent = mySymbol === "X" ? "Your turn" : "Opponent's turn";
+      });
+
+      socket.on("waitingForRematch", () => {
+        openResult("Rematch Requested", "Waiting for the other player to accept the rematch.");
+      });
+
+      socket.on("opponentWantsRematch", () => {
+        openResult("Opponent Wants Rematch", "Click Request Rematch to start a new game together.");
+      });
+
+      socket.on("opponentLeft", () => {
+        onlineReady = false;
+        gameOver = true;
+        matchStateDisplay.textContent = "Opponent Left";
+        turnBanner.textContent = "Opponent left the game";
+        renderBoard();
+        openResult("Opponent Left", "Your opponent left. Go back to the menu to queue again.");
+      });
+
+      socket.on("disconnect", () => {
+        onlineReady = false;
+        matchStateDisplay.textContent = "Disconnected";
+        turnBanner.textContent = "Disconnected from server";
+        renderBoard();
+      });
     }
 
     cells.forEach(cell => {
       cell.addEventListener("click", () => {
-        const index = Number(cell.dataset.index);
-        handlePlayerMove(index);
-
-        if ((isFriendGame || isQueueGame) && currentTurn === "O" && !gameOver) {
-          setTimeout(handleOtherPlayerMockMove, 700);
-        }
+        handlePlayerMove(Number(cell.dataset.index));
       });
     });
 
     restartBtn.addEventListener("click", () => {
+      if (isOnlineGame) {
+        if (!socket || !gameId || !mySessionId) return;
+        socket.emit("requestRematch", { gameId, sessionId: mySessionId });
+        return;
+      }
+
       board = Array(9).fill("");
       currentTurn = "X";
       gameOver = false;
@@ -542,19 +668,33 @@
       winningLine = null;
       resultRecorded = false;
       matchStateDisplay.textContent = "In Progress";
-      resultModal.classList.remove("show");
+      closeResult();
       updateTurnUI();
       renderBoard();
     });
 
-    closeResultBtn.addEventListener("click", () => {
-      resultModal.classList.remove("show");
+    leaveBtn.addEventListener("click", () => {
+      if (socket && gameId) socket.emit("leaveGame", { gameId });
+      window.location.href = "index.html";
     });
-    // comment
+
+    backLink.addEventListener("click", () => {
+      if (socket && gameId) socket.emit("leaveGame", { gameId });
+    });
+
+    closeResultBtn.onclick = closeResult;
 
     setupHeader();
-    updateTurnUI();
-    renderBoard();
+
+    if (isOnlineGame) {
+      updateTurnUI();
+      renderBoard();
+      connectOnline();
+    } else {
+      matchStateDisplay.textContent = "In Progress";
+      updateTurnUI();
+      renderBoard();
+    }
   </script>
 </body>
 </html>

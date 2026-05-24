@@ -20,29 +20,14 @@ const io = new Server(server, {
   }
 });
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
-
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 3000;
 
 const sessions = new Map();
 let queue = [];
+const pendingMatches = new Map();
+const games = new Map();
 
 function getPlayer(socket, profile) {
   if (!profile?.sessionId) return null;
@@ -54,15 +39,11 @@ function getPlayer(socket, profile) {
       sessionId,
       username: profile.username || "Guest",
       rating: Number(profile.rating) || 1000,
-      wins: 0,
-      losses: 0,
-      draws: 0,
       socketId: socket.id
     });
   }
 
   const player = sessions.get(sessionId);
-
   player.socketId = socket.id;
   player.username = profile.username || player.username;
 
@@ -77,26 +58,33 @@ function makeGameId() {
   return "game_" + Math.random().toString(36).slice(2, 10);
 }
 
-function ratingChange(winnerRating, loserRating) {
-  const k = 24;
-  const expected = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
-  return Math.max(1, Math.round(k * (1 - expected)));
+function makeEmptyGame(match) {
+  return {
+    gameId: match.gameId,
+    xSessionId: match.x.sessionId,
+    oSessionId: match.o.sessionId,
+    xName: match.x.username,
+    oName: match.o.username,
+    board: Array(9).fill(""),
+    xMoves: [],
+    oMoves: [],
+    currentTurn: "X",
+    gameOver: false,
+    winner: null,
+    rematchVotes: new Set()
+  };
 }
 
 io.on("connection", (socket) => {
   console.log("Player connected:", socket.id);
 
   socket.on("joinQueue", (profile) => {
-    console.log("joinQueue:", profile);
-
     const player = getPlayer(socket, profile);
     if (!player) return;
 
     queue = queue.filter((p) => p.sessionId !== player.sessionId);
 
-    const opponentIndex = queue.findIndex(
-      (p) => p.sessionId !== player.sessionId
-    );
+    const opponentIndex = queue.findIndex((p) => p.sessionId !== player.sessionId);
 
     if (opponentIndex === -1) {
       queue.push(player);
@@ -107,84 +95,156 @@ io.on("connection", (socket) => {
     const opponent = queue.splice(opponentIndex, 1)[0];
     const gameId = makeGameId();
 
-    io.to(player.socketId).emit("matchFound", {
+    const match = {
       gameId,
-      symbol: "O",
-      sessionId: player.sessionId,
-      opponentSessionId: opponent.sessionId,
-      opponent: opponent.username,
-      playerRating: player.rating,
-      opponentRating: opponent.rating
-    });
+      x: opponent,
+      o: player,
+      accepted: new Set()
+    };
+
+    pendingMatches.set(gameId, match);
 
     io.to(opponent.socketId).emit("matchFound", {
       gameId,
       symbol: "X",
       sessionId: opponent.sessionId,
       opponentSessionId: player.sessionId,
-      opponent: player.username,
-      playerRating: opponent.rating,
-      opponentRating: player.rating
+      opponent: player.username
+    });
+
+    io.to(player.socketId).emit("matchFound", {
+      gameId,
+      symbol: "O",
+      sessionId: player.sessionId,
+      opponentSessionId: opponent.sessionId,
+      opponent: opponent.username
     });
   });
 
   socket.on("leaveQueue", (profile) => {
     if (!profile?.sessionId) return;
-
     queue = queue.filter((p) => p.sessionId !== profile.sessionId);
     socket.emit("leftQueue");
   });
 
-  socket.on("reportResult", ({ winnerSessionId, loserSessionId, draw }) => {
-    const winner = sessions.get(winnerSessionId);
-    const loser = sessions.get(loserSessionId);
+  socket.on("acceptMatch", ({ gameId, sessionId }) => {
+    const match = pendingMatches.get(gameId);
+    if (!match) return;
 
-    if (!winner || !loser) return;
+    match.accepted.add(sessionId);
 
-    if (draw) {
-      winner.draws += 1;
-      loser.draws += 1;
+    const other =
+      match.x.sessionId === sessionId ? match.o : match.x;
 
-      io.to(winner.socketId).emit("ratingUpdated", {
-        rating: winner.rating,
-        wins: winner.wins,
-        losses: winner.losses,
-        draws: winner.draws
+    socket.emit("waitingForOpponentAccept");
+
+    if (match.accepted.has(match.x.sessionId) && match.accepted.has(match.o.sessionId)) {
+      const game = makeEmptyGame(match);
+      games.set(gameId, game);
+      pendingMatches.delete(gameId);
+
+      io.to(match.x.socketId).emit("startOnlineGame", {
+        gameId,
+        symbol: "X",
+        opponent: match.o.username,
+        xName: match.x.username,
+        oName: match.o.username,
+        sessionId: match.x.sessionId,
+        opponentSessionId: match.o.sessionId
       });
 
-      io.to(loser.socketId).emit("ratingUpdated", {
-        rating: loser.rating,
-        wins: loser.wins,
-        losses: loser.losses,
-        draws: loser.draws
+      io.to(match.o.socketId).emit("startOnlineGame", {
+        gameId,
+        symbol: "O",
+        opponent: match.x.username,
+        xName: match.x.username,
+        oName: match.o.username,
+        sessionId: match.o.sessionId,
+        opponentSessionId: match.x.sessionId
       });
+    }
+  });
 
-      return;
+  socket.on("joinGameRoom", ({ gameId }) => {
+    socket.join(gameId);
+    const game = games.get(gameId);
+
+    if (game) {
+      socket.emit("gameState", game);
+    }
+  });
+
+  socket.on("playerMove", ({ gameId, sessionId, index }) => {
+    const game = games.get(gameId);
+    if (!game || game.gameOver) return;
+
+    const symbol = sessionId === game.xSessionId ? "X" : sessionId === game.oSessionId ? "O" : null;
+    if (!symbol) return;
+    if (symbol !== game.currentTurn) return;
+    if (game.board[index] !== "") return;
+
+    const moves = symbol === "X" ? game.xMoves : game.oMoves;
+
+    if (moves.length >= 3) {
+      const oldest = moves.shift();
+      game.board[oldest] = "";
     }
 
-    const change = ratingChange(winner.rating, loser.rating);
+    game.board[index] = symbol;
+    moves.push(index);
 
-    winner.rating += change;
-    loser.rating = Math.max(0, loser.rating - change);
+    const winLines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
 
-    winner.wins += 1;
-    loser.losses += 1;
+    for (const line of winLines) {
+      const [a, b, c] = line;
 
-    io.to(winner.socketId).emit("ratingUpdated", {
-      rating: winner.rating,
-      wins: winner.wins,
-      losses: winner.losses,
-      draws: winner.draws,
-      change: `+${change}`
-    });
+      if (game.board[a] === symbol && game.board[b] === symbol && game.board[c] === symbol) {
+        game.gameOver = true;
+        game.winner = symbol;
+        game.winningLine = line;
+      }
+    }
 
-    io.to(loser.socketId).emit("ratingUpdated", {
-      rating: loser.rating,
-      wins: loser.wins,
-      losses: loser.losses,
-      draws: loser.draws,
-      change: `-${change}`
-    });
+    if (!game.gameOver) {
+      game.currentTurn = game.currentTurn === "X" ? "O" : "X";
+    }
+
+    io.to(gameId).emit("gameState", game);
+  });
+
+  socket.on("requestRematch", ({ gameId, sessionId }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    game.rematchVotes.add(sessionId);
+
+    if (
+      game.rematchVotes.has(game.xSessionId) &&
+      game.rematchVotes.has(game.oSessionId)
+    ) {
+      game.board = Array(9).fill("");
+      game.xMoves = [];
+      game.oMoves = [];
+      game.currentTurn = "X";
+      game.gameOver = false;
+      game.winner = null;
+      game.winningLine = null;
+      game.rematchVotes.clear();
+
+      io.to(gameId).emit("rematchStarted", game);
+      io.to(gameId).emit("gameState", game);
+    } else {
+      socket.to(gameId).emit("opponentWantsRematch");
+      socket.emit("waitingForRematch");
+    }
+  });
+
+  socket.on("leaveGame", ({ gameId }) => {
+    socket.to(gameId).emit("opponentLeft");
   });
 
   socket.on("disconnect", () => {

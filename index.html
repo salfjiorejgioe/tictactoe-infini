@@ -524,17 +524,36 @@
       }
     });
 
-    joinMatchBtn.addEventListener("click", () => {
-      if (!foundMatch) return;
+joinMatchBtn.addEventListener("click", () => {
+  if (!foundMatch || !socket) return;
 
-      window.location.href =
-        `game.html?mode=queue` +
-        `&gameId=${encodeURIComponent(foundMatch.gameId)}` +
-        `&symbol=${encodeURIComponent(foundMatch.symbol)}` +
-        `&sessionId=${encodeURIComponent(foundMatch.sessionId)}` +
-        `&opponentSessionId=${encodeURIComponent(foundMatch.opponentSessionId)}` +
-        `&opponent=${encodeURIComponent(foundMatch.opponent)}`;
-    });
+  queueStatus.textContent = "Waiting for opponent to accept...";
+  joinMatchBtn.disabled = true;
+  joinMatchBtn.classList.add("disabled-btn");
+  joinMatchBtn.classList.remove("enabled-btn");
+
+  socket.emit("acceptMatch", {
+    gameId: foundMatch.gameId,
+    sessionId: foundMatch.sessionId
+  });
+});
+
+if (socket) {
+  socket.on("waitingForOpponentAccept", () => {
+    queueStatus.textContent = "Waiting for opponent to accept...";
+  });
+
+  socket.on("startOnlineGame", (match) => {
+    window.location.href =
+      `game.html?mode=queue` +
+      `&gameId=${encodeURIComponent(match.gameId)}` +
+      `&symbol=${encodeURIComponent(match.symbol)}` +
+      `&sessionId=${encodeURIComponent(match.sessionId)}` +
+      `&opponentSessionId=${encodeURIComponent(match.opponentSessionId)}` +
+      `&xName=${encodeURIComponent(match.xName)}` +
+      `&oName=${encodeURIComponent(match.oName)}`;
+  });
+}
 
     openAvatarPickerBtn.addEventListener("click", () => {
       avatarModal.classList.add("show");
